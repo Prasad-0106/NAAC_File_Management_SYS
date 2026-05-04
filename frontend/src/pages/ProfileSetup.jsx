@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { UserCircle, Loader2, Upload } from 'lucide-react';
 import api from '../utils/api';
 
