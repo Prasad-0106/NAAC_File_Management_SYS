@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   qualification:    { type: String, default: null },
   experience:       { type: String, default: null },
   phone:            { type: String, default: null },
+  signature_url:    { type: String, default: null },
   profile_complete: { type: Number, default: 0 },
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },

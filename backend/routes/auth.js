@@ -216,7 +216,7 @@ router.get('/me', authenticate, async (req, res) => {
 
 router.put('/profile', authenticate, async (req, res) => {
   try {
-    const { name, department, designation, qualification, experience, phone } = req.body;
+    const { name, department, designation, qualification, experience, phone, signature_url } = req.body;
     
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -227,6 +227,7 @@ router.put('/profile', authenticate, async (req, res) => {
     user.qualification = qualification || user.qualification;
     user.experience = experience || user.experience;
     user.phone = phone || user.phone;
+    user.signature_url = signature_url || user.signature_url;
     
     if (user.department && user.designation) {
       user.profile_complete = 1;
@@ -241,6 +242,32 @@ router.put('/profile', authenticate, async (req, res) => {
     userObj.id = userObj._id;
     
     res.json(userObj);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/upload-signature', authenticate, require('multer')().single('signature'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    
+    const streamifier = require('streamifier');
+    const cloudinary = require('cloudinary').v2;
+
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'naac_portal/signatures', resource_type: 'auto' },
+      async (err, result) => {
+        if (err) return res.status(500).json({ error: 'Cloudinary upload failed' });
+        
+        const user = await User.findById(req.user.id);
+        user.signature_url = result.secure_url;
+        await user.save();
+        
+        res.json({ signature_url: result.secure_url });
+      }
+    );
+    streamifier.createReadStream(req.file.buffer).pipe(stream);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

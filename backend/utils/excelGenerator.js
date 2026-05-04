@@ -1,4 +1,5 @@
 const ExcelJS = require('exceljs');
+const axios = require('axios'); // For downloading signature images
 
 const CRITERION_MARKS = { '1': 100, '2': 350, '3': 120, '4': 100, '5': 130, '6': 100, '7': 100 };
 
@@ -109,6 +110,26 @@ async function generateTeacherExcel(user, academicYear, allData, docs, NAAC_CRIT
         dateRow.getCell(3).value = `Date: ${revDate}`;
         dateRow.getCell(3).font = { italic: true, size: 10 };
         dateRow.getCell(3).alignment = { horizontal: 'right' };
+
+        // Add Teacher Signature if available
+        if (user.signature_url) {
+          try {
+            const response = await axios.get(user.signature_url, { responseType: 'arraybuffer' });
+            const imageId = workbook.addImage({
+              buffer: Buffer.from(response.data),
+              extension: 'png',
+            });
+            ws.addImage(imageId, {
+              tl: { col: 0, row: rowIdx - 1 },
+              ext: { width: 150, height: 60 }
+            });
+            ws.getCell(`A${rowIdx}`).value = 'Teacher Signature:';
+            ws.getCell(`A${rowIdx}`).font = { italic: true };
+          } catch (e) {
+            console.error('Failed to add signature image to Excel:', e.message);
+          }
+        }
+
         ws.getCell(`C${rowIdx}:D${rowIdx}`).border = { bottom: { style: 'medium', color: { argb: 'FF1E3A5F' } } };
       }
       ws.views = [{ state: 'frozen', ySplit: 2 }];
@@ -121,7 +142,14 @@ async function generateTeacherExcel(user, academicYear, allData, docs, NAAC_CRIT
     docSheet.getRow(1).eachCell(cell => cell.border = borderStyle);
     
     docs.sort((a,b) => new Date(a.upload_date) - new Date(b.upload_date)).forEach((d, i) => {
-      const r = docSheet.addRow([d.original_name, `Criterion ${d.criterion_no}`, d.sub_criterion, d.upload_date ? new Date(d.upload_date).toISOString().substring(0, 10) : 'N/A', d.status]);
+      let formattedDate = 'N/A';
+      if (d.upload_date) {
+        const dateObj = new Date(d.upload_date);
+        if (!isNaN(dateObj.getTime())) {
+          formattedDate = dateObj.toISOString().substring(0, 10);
+        }
+      }
+      const r = docSheet.addRow([d.original_name, `Criterion ${d.criterion_no}`, d.sub_criterion, formattedDate, d.status]);
       r.eachCell(cell => {
         cell.border = borderStyle;
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? 'FFE8F0FE' : 'FFFFFFFF' } };
