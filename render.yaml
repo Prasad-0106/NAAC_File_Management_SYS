@@ -1,0 +1,38 @@
+services:
+  # ── Backend Web Service ─────────────────────────────────────────────────────
+  - type: web
+    name: naac-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false          # Set manually in Render dashboard (MongoDB Atlas URI)
+      - key: JWT_SECRET
+        sync: false          # Set manually in Render dashboard
+      - key: FRONTEND_URL
+        sync: false          # Set to your Render frontend URL after deploy, e.g. https://naac-frontend.onrender.com
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false          # Set manually in Render dashboard
+      - key: CLOUDINARY_API_KEY
+        sync: false          # Set manually in Render dashboard
+      - key: CLOUDINARY_API_SECRET
+        sync: false          # Set manually in Render dashboard
+
+  # ── Frontend Static Site ────────────────────────────────────────────────────
+  - type: web
+    name: naac-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false          # Set to your Render backend URL after deploy, e.g. https://naac-backend.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

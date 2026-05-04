@@ -5,10 +5,13 @@ const path = require('path');
 const connectDB = require('./db/database');
 
 const app = express();
+const FRONTEND_URL = process.env.FRONTEND_URL || '';
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests from any localhost port (Vite can use 5173, 5174, etc.)
-    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+    // Allow localhost (any port) for local dev, and the deployed Render frontend URL
+    const isLocalhost = !origin || /^http:\/\/localhost(:\d+)?$/.test(origin);
+    const isAllowedOrigin = FRONTEND_URL && origin === FRONTEND_URL;
+    if (isLocalhost || isAllowedOrigin) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
