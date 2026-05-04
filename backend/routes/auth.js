@@ -138,7 +138,7 @@ router.post('/google', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email, role: 'teacher' }); // Only teachers can reset
+    const user = await User.findOne({ email }); // Allow both teachers and HODs to reset
 
     if (!user) {
       return res.status(404).json({ error: 'If the email exists, a reset link will be sent.' }); // Don't leak emails
@@ -149,7 +149,8 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
     
     const mailOptions = {
       from: process.env.EMAIL_USER,
