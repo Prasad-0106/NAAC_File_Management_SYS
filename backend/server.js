@@ -8,12 +8,14 @@ const app = express();
 const FRONTEND_URL = process.env.FRONTEND_URL || '';
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow localhost (any port) for local dev, and the deployed Render frontend URL
-    const isLocalhost = !origin || /^http:\/\/localhost(:\d+)?$/.test(origin);
+    // Allow localhost or 127.0.0.1 (any port) for local dev
+    const isLocal = !origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const isAllowedOrigin = FRONTEND_URL && origin === FRONTEND_URL;
-    if (isLocalhost || isAllowedOrigin) {
+    
+    if (isLocal || isAllowedOrigin || (origin && origin.includes('onrender.com'))) {
       callback(null, true);
     } else {
+      console.log('CORS Blocked Origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
