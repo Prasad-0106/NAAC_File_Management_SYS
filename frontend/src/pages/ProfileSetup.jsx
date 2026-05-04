@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { UserCircle, Loader2 } from 'lucide-react';
 
 const DEPARTMENTS = ['Computer Science','Information Technology','Electronics','Mechanical','Civil','Electrical','Mathematics','Physics','Chemistry','English','Commerce','Management','BBA','BCA','MBA','MCA','Other'];
 
@@ -15,10 +16,16 @@ export default function ProfileSetup() {
 
   const handleSubmit = async e => {
     e.preventDefault(); setError('');
-    if (!form.department || !form.designation) return setError('Department and Designation are required');
+    if (!form.department) return setError('Department is required');
+    if (user?.role === 'teacher' && !form.designation) return setError('Designation is required');
+    if (form.phone && !/^\d{10}$/.test(form.phone)) return setError('Phone number must be exactly 10 digits');
+    
     setLoading(true);
     try {
-      await updateProfile(form);
+      const payload = { ...form };
+      if (user?.role === 'hod') payload.designation = 'HOD';
+
+      await updateProfile(payload);
       navigate('/dashboard');
     } catch (err) { setError(err.response?.data?.error || 'Failed to update profile'); }
     finally { setLoading(false); }
@@ -27,9 +34,10 @@ export default function ProfileSetup() {
   return (
     <div className="auth-page">
       <div className="auth-card card card-lg fade-in" style={{ maxWidth: 520 }}>
-        <div className="auth-logo">
-          <h1>👤 Complete Profile</h1>
-          <p>Please fill in your academic details to continue</p>
+        <div className="auth-logo" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          <UserCircle size={48} color="var(--primary)" />
+          <h1 style={{ margin: 0 }}>Complete Profile</h1>
+          <p style={{ margin: 0, color: 'var(--text-muted)' }}>Please fill in your academic details to continue</p>
         </div>
         {error && <div className="alert alert-error">{error}</div>}
         <div className="alert alert-info">Welcome, {user?.name}! Please complete your profile before accessing the portal.</div>
@@ -45,13 +53,15 @@ export default function ProfileSetup() {
               {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Designation <span className="required">*</span></label>
-            <select className="select" value={form.designation} onChange={e=>set('designation',e.target.value)} required>
-              <option value="">Select designation</option>
-              {['Assistant Professor','Associate Professor','Professor','HOD','Principal','Lecturer'].map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
+          {user?.role === 'teacher' && (
+            <div className="form-group">
+              <label className="form-label">Designation <span className="required">*</span></label>
+              <select className="select" value={form.designation} onChange={e=>set('designation',e.target.value)} required>
+                <option value="">Select designation</option>
+                {['Assistant Professor','Associate Professor','Professor','Lecturer'].map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          )}
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Qualification</label>
@@ -66,8 +76,8 @@ export default function ProfileSetup() {
             <label className="form-label">Phone</label>
             <input className="input" placeholder="+91 9876543210" value={form.phone} onChange={e=>set('phone',e.target.value)} />
           </div>
-          <button className="btn btn-primary btn-lg btn-full" type="submit" disabled={loading}>
-            {loading ? '⏳ Saving...' : '✅ Save Profile & Continue'}
+          <button className="btn btn-primary btn-lg btn-full" type="submit" disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+            {loading ? <><Loader2 className="spin" size={20} /> Saving...</> : 'Save Profile & Continue'}
           </button>
         </form>
       </div>

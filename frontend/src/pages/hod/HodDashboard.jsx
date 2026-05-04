@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ACADEMIC_YEARS, NAAC_CRITERIA } from '../../data/naacCriteria';
 import api from '../../utils/api';
+import { Users, LayoutDashboard } from 'lucide-react';
 
 const STATUS_BADGE = { Pending: 'badge-pending', Verified: 'badge-verified', 'Needs Revision': 'badge-revision' };
 
@@ -28,9 +29,12 @@ export default function HodDashboard() {
   return (
     <div className="fade-in">
       <div className="page-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
-        <div>
-          <h1>🏫 HOD Dashboard</h1>
-          <p>Monitor NAAC documentation progress across all teachers</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <LayoutDashboard size={28} color="var(--primary)" />
+          <div>
+            <h1 style={{ margin: 0 }}>HOD Dashboard</h1>
+            <p style={{ margin: 0, color: 'var(--text-muted)' }}>Monitor NAAC documentation progress for your department</p>
+          </div>
         </div>
         <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
@@ -61,7 +65,9 @@ export default function HodDashboard() {
         <div className="loader"><div className="loader-dot"/><div className="loader-dot"/><div className="loader-dot"/></div>
       ) : teachers.length === 0 ? (
         <div className="empty-state card">
-          <div className="icon">👥</div>
+          <div className="icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+            <Users size={48} color="var(--text-muted)" opacity={0.5} />
+          </div>
           <h3>No Teachers Registered</h3>
           <p>Teachers will appear here once they register</p>
         </div>

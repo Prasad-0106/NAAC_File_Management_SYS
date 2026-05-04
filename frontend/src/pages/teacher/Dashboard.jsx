@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { NAAC_CRITERIA, ACADEMIC_YEARS, CRITERION_COLORS, calcCriterionProgress } from '../../data/naacCriteria';
+import { BookOpen, GraduationCap, Microscope, Building, Target, Settings, Star } from 'lucide-react';
 import api from '../../utils/api';
 
 export default function TeacherDashboard() {
@@ -29,7 +30,7 @@ export default function TeacherDashboard() {
     <div className="fade-in">
       <div className="page-header" style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
         <div>
-          <h1>👋 Welcome, {user?.name?.split(' ')[0]}!</h1>
+          <h1>Welcome, {user?.name?.split(' ')[0]}!</h1>
           <p>Track and manage your NAAC documentation progress</p>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
@@ -93,7 +94,13 @@ export default function TeacherDashboard() {
               <div key={c.no} className={`card criterion-card c${c.no}`} style={{ cursor:'pointer' }} onClick={() => navigate(`/criteria/${c.no}?year=${year}`)}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.75rem' }}>
                   <div className={`criterion-icon c${c.no}`}>
-                    <span>{['📚','🎓','🔬','🏛️','🎯','⚙️','🌟'][parseInt(c.no)-1]}</span>
+                    {c.no === '1' && <BookOpen size={20} />}
+                    {c.no === '2' && <GraduationCap size={20} />}
+                    {c.no === '3' && <Microscope size={20} />}
+                    {c.no === '4' && <Building size={20} />}
+                    {c.no === '5' && <Target size={20} />}
+                    {c.no === '6' && <Settings size={20} />}
+                    {c.no === '7' && <Star size={20} />}
                   </div>
                   <span style={{ fontWeight:700, color, fontSize:'1.1rem' }}>{progress}%</span>
                 </div>

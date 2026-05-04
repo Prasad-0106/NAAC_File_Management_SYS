@@ -12,7 +12,7 @@ router.use(authenticate);
 // Get all teachers for HOD dropdowns
 router.get('/teachers', requireHOD, async (req, res) => {
   try {
-    const teachers = await User.find({ role: 'teacher' }).select('id name department designation').lean();
+    const teachers = await User.find({ role: 'teacher', department: req.user.department }).select('id name department designation').lean();
     const results = teachers.map(t => ({ ...t, id: t._id }));
     res.json(results);
   } catch (err) {
@@ -82,7 +82,7 @@ router.get('/consolidated/:academic_year', requireHOD, async (req, res) => {
   try {
     const { academic_year } = req.params;
     
-    const teachers = await User.find({ role: 'teacher' }).lean();
+    const teachers = await User.find({ role: 'teacher', department: req.user.department }).lean();
     const allCriteria = await CriteriaData.find({ academic_year }).lean();
     const allDocs = await Document.find({ academic_year }).populate('user_id', 'name department').lean();
     
