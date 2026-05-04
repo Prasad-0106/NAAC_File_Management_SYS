@@ -22,8 +22,10 @@ export default function Register() {
 
   const handleSubmit = async e => {
     e.preventDefault(); setError('');
-    if (form.password !== form.confirm) return setError('Passwords do not match');
-    if (form.password.length < 6) return setError('Password must be at least 6 characters');
+    if (form.role === 'teacher') {
+      if (form.password !== form.confirm) return setError('Passwords do not match');
+      if (form.password.length < 6) return setError('Password must be at least 6 characters');
+    }
     if (form.phone && !/^\d{10}$/.test(form.phone)) return setError('Phone number must be exactly 10 digits');
     
     setLoading(true);

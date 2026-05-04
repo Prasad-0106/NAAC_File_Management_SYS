@@ -13,7 +13,7 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   res => res,
   err => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && window.location.pathname !== '/login') {
       localStorage.removeItem('naac_token');
       localStorage.removeItem('naac_user');
       window.location.href = '/login';
@@ -22,4 +22,5 @@ api.interceptors.response.use(
   }
 );
 
+export { API_BASE };
 export default api;

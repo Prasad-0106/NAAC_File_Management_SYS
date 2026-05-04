@@ -115,7 +115,11 @@ export default function SubCriterionForm() {
     setDeleting(null);
   };
 
-  const viewDoc = (id) => window.open(`http://localhost:5000/api/documents/view/${id}`, '_blank');
+  const viewDoc = (id) => {
+    const token = localStorage.getItem('naac_token');
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    window.open(`${baseUrl}/documents/view/${id}?token=${token}`, '_blank');
+  };
 
   return (
     <div className="fade-in" style={{ maxWidth: 800 }}>

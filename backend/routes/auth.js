@@ -23,8 +23,11 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role, department, designation, qualification, experience, phone } = req.body;
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ error: 'Name, email, password, and role are required' });
+    if (!name || !email || !role) {
+      return res.status(400).json({ error: 'Name, email, and role are required' });
+    }
+    if (role === 'teacher' && !password) {
+      return res.status(400).json({ error: 'Password is required for teachers' });
     }
 
     const existingUser = await User.findOne({ email });
