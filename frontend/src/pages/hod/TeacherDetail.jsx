@@ -217,7 +217,11 @@ export default function TeacherDetail() {
                           <span style={{ fontSize:'0.78rem', color:'var(--text-muted)' }}>Documents: </span>
                           {subDocs.map(d => (
                             <span key={d.id} style={{ fontSize:'0.78rem', marginLeft:'0.5rem', color:'var(--accent)', cursor:'pointer' }}
-                              onClick={() => window.open(`http://localhost:5000/api/documents/view/${d.id}`, '_blank')}>
+                              onClick={() => {
+                                const token = localStorage.getItem('naac_token');
+                                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                                window.open(`${baseUrl}/documents/view/${d.id}?token=${token}`, '_blank');
+                              }}>
                               📄 {d.original_name}
                             </span>
                           ))}

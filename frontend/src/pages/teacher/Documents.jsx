@@ -28,7 +28,11 @@ export default function Documents() {
     setRenaming(null); setNewName('');
   };
 
-  const viewDoc = (id) => window.open(`http://localhost:5000/api/documents/view/${id}`, '_blank');
+  const viewDoc = (id) => {
+    const token = localStorage.getItem('naac_token');
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    window.open(`${baseUrl}/documents/view/${id}?token=${token}`, '_blank');
+  };
 
   const filtered = docs.filter(d =>
     !filter || d.original_name.toLowerCase().includes(filter.toLowerCase()) ||
