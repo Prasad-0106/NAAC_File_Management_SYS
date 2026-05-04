@@ -92,7 +92,11 @@ export default function TeacherDetail() {
         });
         
         if (verificationStatus === 'Verified') {
-          html += `<div class="watermark"><img src="/signature.png" alt="HOD Signature" /><p>Verified by HOD: ${today}</p></div>`;
+          html += `<div class="watermark">
+            ${user.signature_url ? `<img src="${user.signature_url}" alt="Teacher Signature" />` : '<div style="height:40px"></div>'}
+            <p>${user.name}</p>
+            <p style="font-size: 10px; color: green;">VERIFIED BY HOD: ${today}</p>
+          </div>`;
         }
         
         html += `</div>`;
