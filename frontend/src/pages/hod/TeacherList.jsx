@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ACADEMIC_YEARS } from '../../data/naacCriteria';
+import { Users, Building2 } from 'lucide-react';
 import api from '../../utils/api';
 
 export default function TeacherList() {
@@ -27,7 +28,7 @@ export default function TeacherList() {
   return (
     <div className="fade-in">
       <div className="page-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
-        <div><h1>👥 All Teachers</h1><p>Browse and manage all registered teachers</p></div>
+        <div><h1><Users size={24} style={{ verticalAlign:'middle', marginRight:'0.5rem' }} /> All Teachers</h1><p>Browse and manage all registered teachers</p></div>
         <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
@@ -59,7 +60,7 @@ export default function TeacherList() {
                   </div>
                 </div>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.8rem', color:'var(--text-muted)', marginBottom:'0.5rem' }}>
-                  <span>🏢 {t.department || 'N/A'}</span>
+                  <span style={{ display:'flex', alignItems:'center', gap:'0.25rem' }}><Building2 size={12} /> {t.department || 'N/A'}</span>
                   <span>{t.designation || ''}</span>
                 </div>
                 <div className="progress-bar-wrap" style={{ marginBottom:'0.5rem' }}>

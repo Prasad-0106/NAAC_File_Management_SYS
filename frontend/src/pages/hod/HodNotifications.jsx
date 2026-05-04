@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
+import { Bell, User, Users, Send, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
 export default function HodNotifications() {
   const [teachers, setTeachers] = useState([]);
@@ -21,30 +22,35 @@ export default function HodNotifications() {
     try {
       if (mode === 'broadcast') {
         const r = await api.post('/notifications/broadcast', { subject: form.subject, message: form.message });
-        setMsg(`✅ Broadcast sent to ${r.data.sent} teachers`);
+        setMsg(`Broadcast sent to ${r.data.sent} teachers`);
       } else {
         await api.post('/notifications/send', { recipient_id: form.recipient_id, subject: form.subject, message: form.message });
-        setMsg('✅ Notification sent successfully!');
+        setMsg('Notification sent successfully!');
       }
       setForm(p => ({ ...p, message: '', subject: '' }));
-    } catch (e) { setMsg('❌ Error: ' + (e.response?.data?.error || e.message)); }
+    } catch (e) { setMsg('Error: ' + (e.response?.data?.error || e.message)); }
     finally { setSending(false); }
   };
 
   return (
     <div className="fade-in" style={{ maxWidth:700 }}>
       <div className="page-header">
-        <h1>🔔 Send Notifications</h1>
+        <h1><Bell size={24} style={{ verticalAlign:'middle', marginRight:'0.5rem' }} /> Send Notifications</h1>
         <p>Send reminders or updates to teachers about NAAC submissions</p>
       </div>
 
       <div className="tabs" style={{ marginBottom:'1.5rem' }}>
-        <button className={`tab${mode==='individual'?' active':''}`} onClick={()=>setMode('individual')}>👤 Individual</button>
-        <button className={`tab${mode==='broadcast'?' active':''}`} onClick={()=>setMode('broadcast')}>📢 Broadcast to All</button>
+        <button className={`tab${mode==='individual'?' active':''}`} onClick={()=>setMode('individual')} style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><User size={16} /> Individual</button>
+        <button className={`tab${mode==='broadcast'?' active':''}`} onClick={()=>setMode('broadcast')} style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><Users size={16} /> Broadcast to All</button>
       </div>
 
       <div className="card">
-        {msg && <div className={`alert ${msg.startsWith('❌')?'alert-error':'alert-success'}`} style={{ marginBottom:'1rem' }}>{msg}</div>}
+        {msg && (
+          <div className={`alert ${msg.startsWith('Error')?'alert-error':'alert-success'}`} style={{ marginBottom:'1rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
+            {msg.startsWith('Error') ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+            {msg}
+          </div>
+        )}
 
         {mode === 'individual' && (
           <div className="form-group" style={{ marginBottom:'1rem' }}>
@@ -57,8 +63,8 @@ export default function HodNotifications() {
         )}
 
         {mode === 'broadcast' && (
-          <div className="alert alert-info" style={{ marginBottom:'1rem' }}>
-            📢 This message will be sent to all {teachers.length} registered teachers
+          <div className="alert alert-info" style={{ marginBottom:'1rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
+            <Info size={18} /> This message will be sent to all {teachers.length} registered teachers
           </div>
         )}
 
@@ -84,8 +90,8 @@ export default function HodNotifications() {
           ))}
         </div>
 
-        <button className="btn btn-primary btn-full" onClick={handleSend} disabled={sending}>
-          {sending ? '⏳ Sending...' : mode==='broadcast' ? '📢 Send to All Teachers' : '📨 Send Notification'}
+        <button className="btn btn-primary btn-full" onClick={handleSend} disabled={sending} style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem' }}>
+          {sending ? 'Sending...' : <><Send size={18} /> {mode==='broadcast' ? 'Send to All Teachers' : 'Send Notification'}</>}
         </button>
       </div>
     </div>

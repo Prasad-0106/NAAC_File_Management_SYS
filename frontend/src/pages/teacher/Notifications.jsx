@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
+import { Bell, Check, Mail } from 'lucide-react';
 
 export default function Notifications() {
   const [notifs, setNotifs] = useState([]);
@@ -28,17 +29,19 @@ export default function Notifications() {
     <div className="fade-in">
       <div className="page-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
-          <h1>🔔 Notifications</h1>
+          <h1><Bell size={24} style={{ verticalAlign:'middle', marginRight:'0.5rem' }} /> Notifications</h1>
           <p>{unread > 0 ? `${unread} unread message${unread>1?'s':''}` : 'All caught up!'}</p>
         </div>
-        {unread > 0 && <button className="btn btn-ghost" onClick={markAll}>✓ Mark All Read</button>}
+        {unread > 0 && <button className="btn btn-ghost" onClick={markAll} style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><Check size={18} /> Mark All Read</button>}
       </div>
 
       {loading ? (
         <div className="loader"><div className="loader-dot"/><div className="loader-dot"/><div className="loader-dot"/></div>
       ) : notifs.length === 0 ? (
         <div className="empty-state card">
-          <div className="icon">🔔</div>
+          <div className="icon">
+            <Mail size={48} color="var(--text-muted)" opacity={0.5} />
+          </div>
           <h3>No Notifications</h3>
           <p>You'll be notified when the HOD sends updates or reminders</p>
         </div>

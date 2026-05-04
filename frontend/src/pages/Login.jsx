@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { GoogleLogin } from '@react-oauth/google';
+
 import api from '../utils/api';
 import { GraduationCap, LogIn, Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 
@@ -26,19 +26,7 @@ export default function Login() {
     } finally { setLoading(false); }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await api.post('/auth/google', { token: credentialResponse.credential });
-      localStorage.setItem('token', res.data.token);
-      window.location.href = '/dashboard';
-    } catch (err) {
-      setError(err.response?.data?.error || 'Google login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="auth-page">
@@ -76,18 +64,7 @@ export default function Login() {
             {loading ? <><Loader2 className="spin" size={20} /> Signing in...</> : <><LogIn size={20} /> Sign In</>}
           </button>
           
-          <div className="divider" style={{ margin: '1rem 0', position: 'relative', textAlign: 'center' }}>
-            <span style={{ background: 'var(--bg-card)', padding: '0 10px', color: 'var(--text-muted)', fontSize: '0.8rem', position: 'relative', top: '-0.7em' }}>OR</span>
-          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <GoogleLogin 
-              onSuccess={handleGoogleSuccess} 
-              onError={() => setError('Google Login Failed')}
-              theme={theme === 'dark' ? 'filled_black' : 'outline'}
-              shape="rectangular"
-            />
-          </div>
         </form>
         <div className="divider" />
         <p style={{ textAlign: 'center', fontSize: '0.875rem' }}>

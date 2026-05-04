@@ -111,8 +111,8 @@ export default function HodDashboard() {
                       </span>
                     </td>
                     <td>
-                      <button className="btn btn-primary btn-sm" onClick={() => navigate(`/hod/teachers/${t.id}?year=${year}`)}>
-                        View →
+                      <button className="btn btn-primary btn-sm" onClick={() => navigate(`/hod/teachers/${t.id}?year=${year}`)} style={{ display:'flex', alignItems:'center', gap:'0.25rem' }}>
+                        View
                       </button>
                     </td>
                   </tr>

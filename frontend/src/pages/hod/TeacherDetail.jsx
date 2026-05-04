@@ -18,6 +18,7 @@ export default function TeacherDetail() {
   const [reviewing, setReviewing] = useState(false);
   const [reviewMsg, setReviewMsg] = useState('');
   const [expandedCriterion, setExpandedCriterion] = useState(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -38,6 +39,84 @@ export default function TeacherDetail() {
     finally { setReviewing(false); }
   };
 
+  const exportPDF = async () => {
+    setExportingPDF(true);
+    try {
+      const r = await api.get(`/export/pdf-data/${year}?teacher_id=${teacherId}`);
+      const data = r.data;
+      const win = window.open('', '_blank');
+      
+      const { user, criteria, academicYear, documents, verificationStatus } = data;
+      const today = new Date().toLocaleDateString('en-IN');
+      let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>NAAC Report</title>
+      <style>
+        .watermark { margin-top: 20px; text-align: right; page-break-inside: avoid; }
+        .watermark img { max-width: 150px; height: auto; border-bottom: 1px solid #1e3a5f; }
+        .watermark p { font-size: 11px; color: #1e3a5f; margin: 4px 0 0 0; font-weight: bold; }
+        .cover { text-align: center; padding: 60px 40px; border-bottom: 3px solid #1e3a5f; }
+        .cover h1 { font-size: 24px; color: #1e3a5f; margin-bottom: 8px; }
+        .cover h2 { font-size: 18px; color: #333; }
+        .cover p { color: #555; margin: 4px 0; }
+        .section { padding: 20px 40px; page-break-before: always; }
+        .section h2 { color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; }
+        .section h3 { color: #2e5090; margin-top: 16px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th { background: #1e3a5f; color: #fff; padding: 6px 8px; text-align: left; font-size: 11px; }
+        td { border: 1px solid #ccc; padding: 5px 8px; font-size: 11px; }
+        tr:nth-child(even) td { background: #f0f4ff; }
+        .footer { text-align: center; color: #999; font-size: 10px; padding: 8px; border-top: 1px solid #ccc; }
+        @media print { .footer { position: fixed; bottom: 0; width: 100%; } }
+      </style></head><body>
+      <div class="cover">
+        <h1>🎓 NAAC Self-Study Report</h1>
+        <h2>${user.name || ''}</h2>
+        <p>${user.designation || ''} — ${user.department || ''}</p>
+        <p>Qualification: ${user.qualification || '—'} | Experience: ${user.experience || '—'} years</p>
+        <p style="margin-top:16px; font-size:14px; font-weight:bold;">Academic Year: ${academicYear}</p>
+        <p>Generated: ${today}</p>
+        <p style="margin-top:10px; font-weight:bold; color: ${verificationStatus === 'Verified' ? 'green' : 'orange'}">
+          Status: ${verificationStatus}
+        </p>
+      </div>`;
+
+      criteria.forEach(c => {
+        html += `<div class="section"><h2>Criterion ${c.no}: ${c.title} (${c.marks} Marks)</h2>`;
+        c.subCriteria.forEach(sub => {
+          html += `<h3>${sub.code}: ${sub.title}</h3><table><tr><th>Field</th><th>Value</th><th>Documents</th></tr>`;
+          sub.fields.filter(f => f.type !== 'file').forEach(field => {
+            const val = data.data[c.no]?.[sub.code]?.[field.name] || '—';
+            const subDocs = documents.filter(d => d.criterion_no === c.no && d.sub_criterion === sub.code).map(d => d.original_name).join(', ') || '—';
+            html += `<tr><td>${field.label}</td><td>${val}</td><td style="font-size:10px;color:#555">${subDocs}</td></tr>`;
+          });
+          html += `</table>`;
+        });
+        
+        if (verificationStatus === 'Verified') {
+          html += `<div class="watermark"><img src="/signature.png" alt="HOD Signature" /><p>Verified by HOD: ${today}</p></div>`;
+        }
+        
+        html += `</div>`;
+      });
+
+      html += `<div class="section"><h2>Summary</h2><table><tr><th>Criterion</th><th>Title</th><th>Marks</th><th>Fields Filled</th></tr>`;
+      criteria.forEach(c => {
+        let filled = 0, total = 0;
+        c.subCriteria.forEach(sub => {
+          sub.fields.filter(f=>f.required&&f.type!=='file').forEach(f => { total++; if(data.data[c.no]?.[sub.code]?.[f.name]) filled++; });
+        });
+        html += `<tr><td>Criterion ${c.no}</td><td>${c.title}</td><td>${c.marks}</td><td>${filled}/${total}</td></tr>`;
+      });
+      html += `</table></div>
+      <div class="footer">NAAC Self-Study Report | ${user.name} | ${user.department} | Academic Year: ${academicYear} | Generated: ${today}</div>
+      </body></html>`;
+
+      win.document.write(html);
+      win.document.close();
+      win.onload = () => { win.focus(); win.print(); };
+    } catch (e) { alert('PDF export failed: ' + e.message); }
+    finally { setExportingPDF(false); }
+  };
+
   if (!teacher) return <div className="loader"><div className="loader-dot"/><div className="loader-dot"/><div className="loader-dot"/></div>;
 
   return (
@@ -51,11 +130,14 @@ export default function TeacherDetail() {
         <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
+        <button className="btn btn-primary btn-sm" onClick={exportPDF} disabled={exportingPDF}>
+          {exportingPDF ? '⏳ Generating PDF...' : '🖨️ Export PDF'}
+        </button>
       </div>
 
       {/* Verification panel */}
       <div className="card" style={{ marginBottom:'1.5rem', borderLeft:'4px solid var(--purple)' }}>
-        <h3 style={{ marginBottom:'1rem' }}>✅ Submit Review</h3>
+        <h3 style={{ marginBottom:'1rem' }}>Submit Review</h3>
         {reviewMsg && <div className={`alert ${reviewMsg.startsWith('Error') ? 'alert-error' : 'alert-success'}`} style={{ marginBottom:'1rem' }}>{reviewMsg}</div>}
         <div style={{ display:'flex', gap:'1rem', flexWrap:'wrap', alignItems:'flex-end' }}>
           <div className="form-group" style={{ flex:1, minWidth:160 }}>
@@ -78,7 +160,7 @@ export default function TeacherDetail() {
             <input className="input" placeholder="Optional feedback for teacher..." value={reviewForm.comment} onChange={e=>setReviewForm(p=>({...p,comment:e.target.value}))} />
           </div>
           <button className="btn btn-primary" onClick={handleReview} disabled={reviewing}>
-            {reviewing ? '⏳' : '✅ Submit Review'}
+            {reviewing ? 'Saving...' : 'Submit Review'}
           </button>
         </div>
 
@@ -109,7 +191,7 @@ export default function TeacherDetail() {
               <div style={{ flex:1 }}>
                 <strong>Criterion {c.no}: {c.title}</strong>
                 <span style={{ marginLeft:'0.75rem', fontSize:'0.78rem', color: hasData?'var(--success)':'var(--text-muted)' }}>
-                  {hasData ? '✅ Data present' : '⭕ No data'}
+                  {hasData ? 'Data present' : 'No data'}
                 </span>
               </div>
               <span style={{ color:'var(--text-muted)' }}>{expandedCriterion===c.no ? '▲' : '▼'}</span>

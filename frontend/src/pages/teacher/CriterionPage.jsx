@@ -52,7 +52,7 @@ export default function CriterionPage() {
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
                   <div style={{ fontWeight:800, color, fontSize:'1.1rem' }}>{progress}%</div>
-                  <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{progress===100?'✅ Complete':progress>0?'🔄 In Progress':'⭕ Not Started'}</div>
+                  <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{progress===100?'Complete':progress>0?'In Progress':'Not Started'}</div>
                 </div>
                 <span style={{ color:'var(--text-muted)', fontSize:'1.2rem' }}>›</span>
               </div>

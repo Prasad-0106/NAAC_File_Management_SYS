@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ACADEMIC_YEARS } from '../../data/naacCriteria';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
+import { Download, Printer, FileText, BarChart3, CheckCircle2, Info } from 'lucide-react';
 
 export default function ExportPage() {
   const { user } = useAuth();
@@ -11,14 +12,17 @@ export default function ExportPage() {
   const exportExcel = async () => {
     setLoading(p => ({ ...p, excel: true }));
     try {
-      const token = localStorage.getItem('naac_token');
-      const res = await fetch(`http://localhost:5000/api/export/excel/${year}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `NAAC_Report_${user.name.replace(/ /g,'_')}_${year}.xlsx`;
-      a.click(); URL.revokeObjectURL(url);
+      const res = await api.get(`/export/excel/${year}`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeName = user.name.replace(/[^a-zA-Z0-9]/g, '_');
+      link.setAttribute('download', `NAAC_Report_${safeName}_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (e) { alert('Export failed: ' + e.message); }
     finally { setLoading(p => ({ ...p, excel: false })); }
   };
@@ -41,7 +45,7 @@ export default function ExportPage() {
   return (
     <div className="fade-in" style={{ maxWidth: 700 }}>
       <div className="page-header">
-        <h1>📤 Export Report</h1>
+        <h1><Download size={24} style={{ verticalAlign:'middle', marginRight:'0.5rem' }} /> Export Report</h1>
         <p>Generate your NAAC data as Excel or PDF for submission</p>
       </div>
 
@@ -54,7 +58,9 @@ export default function ExportPage() {
 
       <div className="grid-2">
         <div className="card" style={{ textAlign:'center' }}>
-          <div style={{ fontSize:'3rem', marginBottom:'0.75rem' }}>📊</div>
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:'0.75rem' }}>
+            <BarChart3 size={48} color="var(--success)" />
+          </div>
           <h3>Excel Export</h3>
           <p style={{ fontSize:'0.85rem', margin:'0.5rem 0 1.25rem' }}>
             Generates a structured workbook with summary sheet + 7 criteria sheets + document index, ready for NAAC submission
@@ -64,7 +70,9 @@ export default function ExportPage() {
           </button>
         </div>
         <div className="card" style={{ textAlign:'center' }}>
-          <div style={{ fontSize:'3rem', marginBottom:'0.75rem' }}>📄</div>
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:'0.75rem' }}>
+            <FileText size={48} color="var(--primary)" />
+          </div>
           <h3>PDF Export</h3>
           <p style={{ fontSize:'0.85rem', margin:'0.5rem 0 1.25rem' }}>
             Generates a printable PDF report with cover page, all criteria data, document list, and summary table
@@ -76,13 +84,15 @@ export default function ExportPage() {
       </div>
 
       <div className="card" style={{ marginTop:'1.5rem' }}>
-        <h3 style={{ marginBottom:'0.75rem' }}>📋 Export Includes</h3>
-        <ul style={{ color:'var(--text-secondary)', fontSize:'0.875rem', paddingLeft:'1.25rem', display:'flex', flexDirection:'column', gap:'0.375rem' }}>
-          <li>✅ Cover page with teacher & department details</li>
-          <li>✅ All 7 NAAC criteria with field-by-field data</li>
-          <li>✅ Uploaded documents list with dates and status</li>
-          <li>✅ Summary table with completion % per criterion</li>
-          <li>✅ Export date, academic year, and page numbers</li>
+        <h3 style={{ marginBottom:'0.75rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
+          <Info size={20} color="var(--accent)" /> Export Includes
+        </h3>
+        <ul style={{ color:'var(--text-secondary)', fontSize:'0.875rem', paddingLeft:'1.25rem', display:'flex', flexDirection:'column', gap:'0.375rem', listStyle:'none' }}>
+          <li style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><CheckCircle2 size={14} color="var(--success)" /> Cover page with teacher & department details</li>
+          <li style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><CheckCircle2 size={14} color="var(--success)" /> All 7 NAAC criteria with field-by-field data</li>
+          <li style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><CheckCircle2 size={14} color="var(--success)" /> Uploaded documents list with dates and status</li>
+          <li style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><CheckCircle2 size={14} color="var(--success)" /> Summary table with completion % per criterion</li>
+          <li style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><CheckCircle2 size={14} color="var(--success)" /> Export date, academic year, and page numbers</li>
         </ul>
       </div>
     </div>
@@ -90,11 +100,13 @@ export default function ExportPage() {
 }
 
 function buildPDFHtml(data) {
-  const { user, criteria, academicYear, documents } = data;
+  const { user, criteria, academicYear, documents, verificationStatus } = data;
   const today = new Date().toLocaleDateString('en-IN');
   let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>NAAC Report</title>
   <style>
-    body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; margin: 0; }
+    .watermark { margin-top: 20px; text-align: right; page-break-inside: avoid; }
+    .watermark img { max-width: 150px; height: auto; border-bottom: 1px solid #1e3a5f; }
+    .watermark p { font-size: 11px; color: #1e3a5f; margin: 4px 0 0 0; font-weight: bold; }
     .cover { text-align: center; padding: 60px 40px; border-bottom: 3px solid #1e3a5f; }
     .cover h1 { font-size: 24px; color: #1e3a5f; margin-bottom: 8px; }
     .cover h2 { font-size: 18px; color: #333; }
@@ -110,15 +122,18 @@ function buildPDFHtml(data) {
     @media print { .footer { position: fixed; bottom: 0; width: 100%; } }
   </style></head><body>
   <div class="cover">
-    <h1>🎓 NAAC Self-Study Report</h1>
+    <h1>NAAC Self-Study Report</h1>
     <h2>${user.name || ''}</h2>
     <p>${user.designation || ''} — ${user.department || ''}</p>
     <p>Qualification: ${user.qualification || '—'} | Experience: ${user.experience || '—'} years</p>
     <p style="margin-top:16px; font-size:14px; font-weight:bold;">Academic Year: ${academicYear}</p>
     <p>Generated: ${today}</p>
+    <p style="margin-top:10px; font-weight:bold; color: ${verificationStatus === 'Verified' ? 'green' : 'orange'}">
+      Status: ${verificationStatus}
+    </p>
   </div>`;
 
-  criteria.forEach(c => {
+    criteria.forEach(c => {
     html += `<div class="section"><h2>Criterion ${c.no}: ${c.title} (${c.marks} Marks)</h2>`;
     c.subCriteria.forEach(sub => {
       html += `<h3>${sub.code}: ${sub.title}</h3><table><tr><th>Field</th><th>Value</th><th>Documents</th></tr>`;
@@ -129,6 +144,11 @@ function buildPDFHtml(data) {
       });
       html += `</table>`;
     });
+    
+    if (verificationStatus === 'Verified') {
+      html += `<div class="watermark"><img src="/signature.png" alt="HOD Signature" /><p>Verified by HOD: ${today}</p></div>`;
+    }
+    
     html += `</div>`;
   });
 

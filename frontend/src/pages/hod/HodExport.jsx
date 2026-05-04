@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { ACADEMIC_YEARS } from '../../data/naacCriteria';
+import api from '../../utils/api';
+import { Download, BarChart3, Info, ListChecks } from 'lucide-react';
 
 export default function HodExport() {
   const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
@@ -8,14 +10,16 @@ export default function HodExport() {
   const exportConsolidated = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('naac_token');
-      const res = await fetch(`http://localhost:5000/api/export/consolidated/${year}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `NAAC_Consolidated_${year}.xlsx`;
-      a.click(); URL.revokeObjectURL(url);
+      const res = await api.get(`/export/consolidated/${year}`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `NAAC_Consolidated_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (e) { alert('Export failed: ' + e.message); }
     finally { setLoading(false); }
   };
@@ -23,7 +27,7 @@ export default function HodExport() {
   return (
     <div className="fade-in" style={{ maxWidth:700 }}>
       <div className="page-header">
-        <h1>📤 Consolidated Export</h1>
+        <h1><Download size={24} style={{ verticalAlign:'middle', marginRight:'0.5rem' }} /> Consolidated Export</h1>
         <p>Generate a NAAC-ready workbook combining all teachers' data</p>
       </div>
 
@@ -35,18 +39,22 @@ export default function HodExport() {
       </div>
 
       <div className="card" style={{ textAlign:'center', marginBottom:'1.5rem' }}>
-        <div style={{ fontSize:'4rem', marginBottom:'1rem' }}>📊</div>
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:'1rem' }}>
+          <BarChart3 size={64} color="var(--success)" />
+        </div>
         <h2 style={{ marginBottom:'0.5rem' }}>Consolidated Excel Workbook</h2>
         <p style={{ marginBottom:'1.5rem' }}>
           Combines all teachers' NAAC data into a single NAAC-submission-ready workbook
         </p>
-        <button className="btn btn-success btn-lg" onClick={exportConsolidated} disabled={loading}>
-          {loading ? '⏳ Generating Workbook...' : '⬇️ Download Consolidated Excel (.xlsx)'}
+        <button className="btn btn-success btn-lg" onClick={exportConsolidated} disabled={loading} style={{ display:'flex', alignItems:'center', gap:'0.5rem', margin:'0 auto' }}>
+          {loading ? 'Generating Workbook...' : <><Download size={20} /> Download Consolidated Excel (.xlsx)</>}
         </button>
       </div>
 
       <div className="card">
-        <h3 style={{ marginBottom:'1rem' }}>📋 Workbook Structure</h3>
+        <h3 style={{ marginBottom:'1rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
+          <ListChecks size={20} color="var(--accent)" /> Workbook Structure
+        </h3>
         <div style={{ display:'flex', flexDirection:'column', gap:'0.625rem' }}>
           {[
             { sheet:'Summary', desc:'All teachers with completion status, document count, and verification status' },

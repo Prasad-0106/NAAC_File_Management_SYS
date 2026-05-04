@@ -130,7 +130,7 @@ export default function SubCriterionForm() {
         </select>
       </div>
 
-      {saved && <div className="alert alert-success">✅ Data saved successfully!</div>}
+      {saved && <div className="alert alert-success">Data saved successfully!</div>}
       {error && <div className="alert alert-error">{error}</div>}
 
       <form onSubmit={handleSave}>

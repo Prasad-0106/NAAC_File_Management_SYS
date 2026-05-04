@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { GoogleLogin } from '@react-oauth/google';
+
 import api from '../utils/api';
 import { GraduationCap, User, ShieldCheck, Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 
@@ -22,8 +22,10 @@ export default function Register() {
 
   const handleSubmit = async e => {
     e.preventDefault(); setError('');
-    if (form.password !== form.confirm) return setError('Passwords do not match');
-    if (form.password.length < 6) return setError('Password must be at least 6 characters');
+    if (form.role === 'teacher') {
+      if (form.password !== form.confirm) return setError('Passwords do not match');
+      if (form.password.length < 6) return setError('Password must be at least 6 characters');
+    }
     if (form.phone && !/^\d{10}$/.test(form.phone)) return setError('Phone number must be exactly 10 digits');
     
     setLoading(true);
@@ -31,26 +33,18 @@ export default function Register() {
       const payload = { ...form };
       if (payload.role === 'hod') payload.designation = 'HOD';
 
-      const user = await register(payload);
-      navigate(user.role === 'hod' ? '/hod/dashboard' : (user.profile_complete ? '/dashboard' : '/profile-setup'));
+      const registeredUser = await register(payload, payload.role === 'teacher');
+      if (payload.role === 'hod') {
+        alert('HOD Account created successfully! Please login with the global password.');
+        navigate('/login');
+      } else {
+        navigate(registeredUser.profile_complete ? '/dashboard' : '/profile-setup');
+      }
     } catch (err) { setError(err.response?.data?.error || 'Registration failed'); }
     finally { setLoading(false); }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      setLoading(true);
-      setError('');
-      // If the user uses Google Sign In here, we pass the current selected role
-      const res = await api.post('/auth/google', { token: credentialResponse.credential, role: form.role });
-      localStorage.setItem('token', res.data.token);
-      window.location.href = '/dashboard';
-    } catch (err) {
-      setError(err.response?.data?.error || 'Google registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="auth-page" style={{ alignItems: 'flex-start', paddingTop: '2rem' }}>
@@ -118,28 +112,26 @@ export default function Register() {
           )}
 
           <div className="form-group">
-            <label className="form-label">Phone Number</label>
-            <input className="input" placeholder="+91 9876543210" value={form.phone} onChange={e=>set('phone',e.target.value)} />
+            <label className="form-label">Department <span className="required">*</span></label>
+            <select className="select" value={form.department} onChange={e=>set('department',e.target.value)} required>
+              <option value="">Select Department...</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
           </div>
+
+          {form.role === 'teacher' && (
+            <div className="form-group">
+              <label className="form-label">Phone Number</label>
+              <input className="input" placeholder="+91 9876543210" value={form.phone} onChange={e=>set('phone',e.target.value)} />
+            </div>
+          )}
           
           <div className="divider" style={{ margin: '0' }} />
           <button className="btn btn-primary btn-lg btn-full" type="submit" disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
             {loading ? <><Loader2 className="spin" size={20} /> Registering...</> : <><User size={20} /> Create Account</>}
           </button>
 
-          <div className="divider" style={{ margin: '1rem 0', position: 'relative', textAlign: 'center' }}>
-            <span style={{ background: 'var(--bg-card)', padding: '0 10px', color: 'var(--text-muted)', fontSize: '0.8rem', position: 'relative', top: '-0.7em' }}>OR</span>
-          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <GoogleLogin 
-              onSuccess={handleGoogleSuccess} 
-              onError={() => setError('Google Login Failed')}
-              theme={theme === 'dark' ? 'filled_black' : 'outline'}
-              shape="rectangular"
-              text="signup_with"
-            />
-          </div>
         </form>
         <div className="divider" />
         <p style={{ textAlign:'center', fontSize:'0.875rem' }}>

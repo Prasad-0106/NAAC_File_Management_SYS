@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
@@ -77,14 +77,12 @@ export default function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder_client_id';
 
   return (
-    <GoogleOAuthProvider clientId={clientId}>
-      <ThemeProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </BrowserRouter>
-      </ThemeProvider>
-    </GoogleOAuthProvider>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }

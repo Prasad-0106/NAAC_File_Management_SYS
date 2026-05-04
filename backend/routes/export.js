@@ -4,6 +4,7 @@ const { authenticate, requireHOD } = require('../middleware/auth');
 const User = require('../models/User');
 const CriteriaData = require('../models/CriteriaData');
 const Document = require('../models/Document');
+const Verification = require('../models/Verification');
 const { NAAC_CRITERIA } = require('../utils/naacData');
 
 const router = express.Router();
@@ -39,12 +40,15 @@ router.get('/pdf-data/:academic_year', async (req, res) => {
 
     const docs = await Document.find({ user_id: userId, academic_year }).lean();
     
+    const verification = await Verification.findOne({ teacher_id: userId, academic_year }).sort({ reviewed_at: -1 }).lean();
+    
     res.json({
       user,
       academicYear: academic_year,
       criteria: NAAC_CRITERIA,
       data,
-      documents: docs
+      documents: docs,
+      verificationStatus: verification?.status || 'Pending'
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -66,14 +70,16 @@ router.get('/excel/:academic_year', async (req, res) => {
       data[r.criterion_no][r.sub_criterion][r.field_name] = r.field_value;
     });
     const docs = await Document.find({ user_id: userId, academic_year }).lean();
+    const verification = await Verification.findOne({ teacher_id: userId, academic_year }).sort({ reviewed_at: -1 }).lean();
     
-    const buffer = await generateTeacherExcel(user, academic_year, data, docs, NAAC_CRITERIA);
+    const buffer = await generateTeacherExcel(user, academic_year, data, docs, NAAC_CRITERIA, verification);
     
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=NAAC_Report_${academic_year}.xlsx`);
+    res.attachment(`NAAC_Report_${academic_year}.xlsx`);
+    res.type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(buffer);
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Export Error:', err);
+    res.status(500).json({ error: `Export failed: ${err.message}` });
   }
 });
 
@@ -85,6 +91,7 @@ router.get('/consolidated/:academic_year', requireHOD, async (req, res) => {
     const teachers = await User.find({ role: 'teacher', department: req.user.department }).lean();
     const allCriteria = await CriteriaData.find({ academic_year }).lean();
     const allDocs = await Document.find({ academic_year }).populate('user_id', 'name department').lean();
+    const allVerifications = await Verification.find({ academic_year }).lean();
     
     // Group criteria by teacher
     const criteriaByTeacher = {};
@@ -103,10 +110,10 @@ router.get('/consolidated/:academic_year', requireHOD, async (req, res) => {
       department: d.user_id?.department || 'Unknown'
     }));
 
-    const buffer = await generateConsolidatedExcel(teachers, academic_year, criteriaByTeacher, formattedDocs, NAAC_CRITERIA);
+    const buffer = await generateConsolidatedExcel(teachers, academic_year, criteriaByTeacher, formattedDocs, NAAC_CRITERIA, allVerifications);
     
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=NAAC_Consolidated_${academic_year}.xlsx`);
+    res.attachment(`NAAC_Consolidated_${academic_year}.xlsx`);
+    res.type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(buffer);
   } catch (err) {
     console.error(err);
