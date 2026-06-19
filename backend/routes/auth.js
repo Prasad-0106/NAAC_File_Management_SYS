@@ -408,29 +408,9 @@ NAAC Portal – DBATU
 </div>
     `.trim();
 
-    let emailSuccess = false;
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: teacher.email,
-          subject: 'NAAC Portal – Your Access Has Been Approved',
-          text: emailBody,
-          html: emailHtml
-        });
-        emailSuccess = true;
-      } catch (emailErr) {
-        console.error('Email sending failed:', emailErr.message);
-      }
-    } else {
-      console.log(`EMAIL NOT CONFIGURED. Temp password for ${teacher.email}:`, tempPassword);
-    }
+    await sendEmailBrevo(teacher.email, 'NAAC Portal – Your Access Has Been Approved', emailHtml);
 
-    if (emailSuccess) {
-      res.json({ success: true, message: `Teacher approved and credentials emailed to ${teacher.email}. (Please inform them to check their SPAM folder!)` });
-    } else {
-      res.json({ success: true, message: `Approved, but email failed. Give this password manually: ${tempPassword}` });
-    }
+    res.json({ success: true, message: `Teacher approved and credentials emailed to ${teacher.email}. (Please inform them to check their SPAM folder!)` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
