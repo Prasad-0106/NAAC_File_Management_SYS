@@ -29,7 +29,8 @@ async function sendEmailBrevo(toEmail, subject, htmlContent) {
     const response = await axios.post('https://api.brevo.com/v3/smtp/email', payload, {
       headers: {
         'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       }
     });
     console.log(`Email sent via Brevo to ${toEmail}`);
