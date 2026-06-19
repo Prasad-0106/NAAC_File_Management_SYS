@@ -17,12 +17,16 @@ async function sendEmailBrevo(toEmail, subject, htmlContent) {
     return;
   }
   try {
-    await axios.post('https://api.brevo.com/v3/smtp/email', {
+    const payload = {
       sender: { email: process.env.EMAIL_USER || 'parthsalunkhe0103@gmail.com', name: 'NAAC Portal' },
       to: [{ email: toEmail }],
       subject: subject,
-      htmlContent: htmlContent
-    }, {
+      htmlContent: `<html><body>${htmlContent}</body></html>`
+    };
+    
+    console.log('Sending to Brevo with payload:', JSON.stringify(payload));
+
+    const response = await axios.post('https://api.brevo.com/v3/smtp/email', payload, {
       headers: {
         'api-key': process.env.BREVO_API_KEY,
         'Content-Type': 'application/json'
@@ -30,7 +34,7 @@ async function sendEmailBrevo(toEmail, subject, htmlContent) {
     });
     console.log(`Email sent via Brevo to ${toEmail}`);
   } catch (error) {
-    console.error('Brevo Email Error:', error.response?.data || error.message);
+    console.error('Brevo Email Error payload:', error.response?.data || error.message);
   }
 }
 
