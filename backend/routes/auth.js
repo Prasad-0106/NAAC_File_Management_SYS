@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
@@ -10,18 +10,29 @@ const { logAudit } = require('../utils/audit');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Use SSL
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 10000,
-  socketTimeout: 30000
-});
+// ── Email Sending via Brevo API (Bypasses Render SMTP restrictions) ──
+async function sendEmailBrevo(toEmail, subject, htmlContent) {
+  if (!process.env.BREVO_API_KEY) {
+    console.warn('BREVO_API_KEY is not set. Email not sent.');
+    return;
+  }
+  try {
+    await axios.post('https://api.brevo.com/v3/smtp/email', {
+      sender: { email: process.env.EMAIL_USER || 'parthsalunkhe0103@gmail.com', name: 'NAAC Portal' },
+      to: [{ email: toEmail }],
+      subject: subject,
+      htmlContent: htmlContent
+    }, {
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log(`Email sent via Brevo to ${toEmail}`);
+  } catch (error) {
+    console.error('Brevo Email Error:', error.response?.data || error.message);
+  }
+}
 
 const router = express.Router();
 
@@ -177,19 +188,7 @@ router.post('/forgot-password', async (req, res) => {
 </div>
     `.trim();
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: 'NAAC Portal - Password Reset',
-      text: `You requested a password reset. Please click the link below to reset your password:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email.`,
-      html: emailHtml
-    };
-
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      await transporter.sendMail(mailOptions);
-    } else {
-      console.log('EMAIL NOT CONFIGURED. Reset URL:', resetUrl); // Fallback for testing
-    }
+    await sendEmailBrevo(user.email, 'NAAC Portal - Password Reset', emailHtml);
 
     res.json({ message: 'If the email exists, a reset link will be sent.' });
   } catch (err) {
@@ -288,25 +287,6 @@ router.post('/superadmin/invite-hod', authenticate, async (req, res) => {
     logAudit(req.user.id, req.user.name, 'superadmin', 'INVITE_HOD', 'users', hod._id, `Invited HOD: ${email}`, req.ip);
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const emailBody = `
-Dear ${name},
-
-You have been registered as the Head of Department (HOD) for the ${department} department on the NAAC File Management Portal at DBATU.
-
-Your login credentials are:
-  Email:    ${email}
-  Password: ${tempPassword}
-
-You will be asked to set a new permanent password on your first login.
-
-Portal Link: ${frontendUrl}/login
-
-Please do not share these credentials with anyone.
-
-Regards,
-NAAC Portal – Super Admin
-    `.trim();
-
     const emailHtml = `
 <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
   <div style="background-color: #2563eb; color: white; padding: 24px; text-align: center;">
@@ -336,31 +316,9 @@ NAAC Portal – Super Admin
 </div>
     `.trim();
 
-    let emailSuccess = false;
-    let emailErrorMsg = '';
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'NAAC Portal – HOD Account Created',
-          text: emailBody,
-          html: emailHtml
-        });
-        emailSuccess = true;
-      } catch (emailErr) {
-        console.error('Email sending failed:', emailErr.message);
-        emailErrorMsg = emailErr.message;
-      }
-    } else {
-      console.log('EMAIL NOT CONFIGURED. Temp Password:', tempPassword);
-    }
-
-    if (emailSuccess) {
-      res.json({ success: true, message: `HOD account created and credentials emailed to ${email}. (Please inform them to check their SPAM folder!)` });
-    } else {
-      res.json({ success: true, message: `HOD created, but email failed. Give this password manually: ${tempPassword}` });
-    }
+    await sendEmailBrevo(email, 'NAAC Portal – HOD Account Created', emailHtml);
+    
+    res.json({ success: true, message: `HOD account created and credentials emailed to ${email}. (Please inform them to check their SPAM folder!)` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
