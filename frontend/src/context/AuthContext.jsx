@@ -26,14 +26,9 @@ export function AuthProvider({ children }) {
     return r.data.user;
   };
 
-  const register = async (data, autoLogin = true) => {
+  const register = async (data) => {
     const r = await api.post('/auth/register', data);
-    if (autoLogin) {
-      localStorage.setItem('naac_token', r.data.token);
-      localStorage.setItem('naac_user', JSON.stringify(r.data.user));
-      setUser(r.data.user);
-    }
-    return r.data.user;
+    return r.data; // returns { message: '...' }
   };
 
   const updateProfile = async (data) => {

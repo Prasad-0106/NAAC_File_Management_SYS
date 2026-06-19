@@ -8,7 +8,7 @@ import api from '../../utils/api';
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [allData, setAllData] = useState({});
   const [docs, setDocs] = useState([]);
   const [verifs, setVerifs] = useState([]);
@@ -19,7 +19,7 @@ export default function TeacherDashboard() {
     Promise.all([
       api.get(`/criteria/${year}`).then(r => setAllData(r.data)),
       api.get(`/documents/list?academic_year=${year}`).then(r => setDocs(r.data)),
-      api.get(`/verifications/teacher/${user.id}`).then(r => setVerifs(r.data)),
+      api.get(`/verifications/teacher/${user.id}?academic_year=${year}`).then(r => setVerifs(r.data)),
     ]).finally(() => setLoading(false));
   }, [year]);
 
@@ -35,7 +35,7 @@ export default function TeacherDashboard() {
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
           <label className="form-label" style={{ margin:0, whiteSpace:'nowrap' }}>Academic Year:</label>
-          <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+          <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
             {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>

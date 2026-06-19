@@ -16,18 +16,145 @@ async function generateTeacherExcel(user, academicYear, allData, docs, NAAC_CRIT
     workbook.creator = 'NAAC File Management System';
     workbook.created = new Date();
 
-    const summary = workbook.addWorksheet('Summary');
-    summary.mergeCells('A1:F1');
-    summary.getCell('A1').value = `NAAC Self-Study Report — ${user?.name || 'Unknown'} — ${academicYear}`;
-    summary.getCell('A1').font = { bold: true, size: 14 };
-    summary.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    const headerRow = summary.getRow(2);
-    headerRow.values = ['Criterion', 'Title', 'Max Marks', 'Fields Filled', 'Progress %', 'HOD Status'];
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
-    headerRow.alignment = { horizontal: 'center' };
-    headerRow.eachCell(cell => cell.border = borderStyle);
+    const today = new Date().toLocaleDateString('en-IN');
+    const status = verification?.status || 'Pending';
+
+    // Single Worksheet
+    const ws = workbook.addWorksheet('NAAC Report');
+    ws.columns = [{ width: 45 }, { width: 40 }, { width: 40 }, { width: 15 }];
+
+    // 1. Cover Page Details
+    ws.mergeCells('A2:C2');
+    ws.getCell('A2').value = 'NAAC Self-Study Report';
+    ws.getCell('A2').font = { bold: true, size: 20, color: { argb: 'FF1E3A5F' } };
+    ws.getCell('A2').alignment = { horizontal: 'center' };
+
+    ws.mergeCells('A4:C4');
+    ws.getCell('A4').value = user?.name || 'Unknown';
+    ws.getCell('A4').font = { bold: true, size: 16 };
+    ws.getCell('A4').alignment = { horizontal: 'center' };
+
+    ws.mergeCells('A5:C5');
+    ws.getCell('A5').value = `${user?.designation || 'Lecturer'} — ${user?.department || 'Information Technology'}`;
+    ws.getCell('A5').font = { size: 12 };
+    ws.getCell('A5').alignment = { horizontal: 'center' };
+
+    ws.mergeCells('A6:C6');
+    ws.getCell('A6').value = `Qualification: ${user?.qualification || '—'} | Experience: ${user?.experience || '0'} years`;
+    ws.getCell('A6').font = { size: 12 };
+    ws.getCell('A6').alignment = { horizontal: 'center' };
+
+    ws.mergeCells('A8:C8');
+    ws.getCell('A8').value = `Academic Year: ${academicYear}`;
+    ws.getCell('A8').font = { bold: true, size: 12 };
+    ws.getCell('A8').alignment = { horizontal: 'center' };
+
+    ws.mergeCells('A9:C9');
+    ws.getCell('A9').value = `Generated: ${today}`;
+    ws.getCell('A9').font = { size: 12 };
+    ws.getCell('A9').alignment = { horizontal: 'center' };
+
+    ws.mergeCells('A11:C11');
+    ws.getCell('A11').value = `Status: ${status}`;
+    ws.getCell('A11').font = { bold: true, size: 12, color: { argb: status === 'Verified' ? 'FF008000' : status === 'Needs Revision' ? 'FFFFA500' : 'FF666666' } };
+    ws.getCell('A11').alignment = { horizontal: 'center' };
+
+    let rowIdx = 13;
+
+    // 2. Criteria Data
+    for (const criterion of NAAC_CRITERIA) {
+      ws.mergeCells(`A${rowIdx}:C${rowIdx}`);
+      const titleCell = ws.getCell(`A${rowIdx}`);
+      titleCell.value = `Criterion ${criterion.no}: ${criterion.title} (${CRITERION_MARKS[criterion.no] || 100} Marks)`;
+      titleCell.font = { bold: true, size: 14, color: { argb: 'FF1E3A5F' } };
+      titleCell.border = { bottom: { style: 'medium', color: { argb: 'FF1E3A5F' } } };
+      rowIdx++;
+      
+      for (const sub of criterion.subCriteria) {
+        const subTitleRow = ws.getRow(rowIdx++);
+        subTitleRow.values = [`${sub.code}: ${sub.title}`];
+        subTitleRow.font = { bold: true, size: 12, color: { argb: 'FF2E5090' } };
+        ws.mergeCells(`A${rowIdx - 1}:C${rowIdx - 1}`);
+
+        const headerRow = ws.getRow(rowIdx++);
+        headerRow.values = ['Field', 'Value', 'Documents'];
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+        for (let i = 1; i <= 3; i++) {
+          headerRow.getCell(i).border = borderStyle;
+        }
+
+        const subData = allData[criterion.no]?.[sub.code] || {};
+        const subDocs = docs.filter(d => d.criterion_no === criterion.no && d.sub_criterion === sub.code);
+
+        sub.fields.filter(f => f.type !== 'file').forEach((field, fIdx) => {
+          const val = subData[field.name] || '—';
+          const docNames = subDocs.map(d => d.original_name).join(', ') || '—';
+          const dataRow = ws.getRow(rowIdx++);
+          dataRow.values = [field.label || field.name, val, docNames];
+          for (let i = 1; i <= 3; i++) {
+            const cell = dataRow.getCell(i);
+            cell.border = borderStyle;
+            cell.alignment = { wrapText: true, vertical: 'top' };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fIdx % 2 === 0 ? 'FFF9FBFF' : 'FFFFFFFF' } };
+          }
+        });
+        
+        rowIdx++; // empty row between subcriteria
+      }
+      rowIdx++; // empty row between criteria
+    }
+
+    // 3. Signature
+    if (verification?.status === 'Verified') {
+      const sigRow = ws.getRow(rowIdx);
+      sigRow.getCell(3).value = 'VERIFIED BY HOD';
+      sigRow.getCell(3).font = { bold: true, color: { argb: 'FF1E3A5F' } };
+      sigRow.getCell(3).alignment = { horizontal: 'right' };
+      
+      const dateRow = ws.getRow(rowIdx + 1);
+      const revDate = verification.reviewed_at ? new Date(verification.reviewed_at).toLocaleDateString('en-IN') : today;
+      dateRow.getCell(3).value = `Date: ${revDate}`;
+      dateRow.getCell(3).font = { italic: true, size: 10 };
+      dateRow.getCell(3).alignment = { horizontal: 'right' };
+
+      if (user.signature_url) {
+        try {
+          const response = await axios.get(user.signature_url, { responseType: 'arraybuffer' });
+          const imageId = workbook.addImage({ buffer: Buffer.from(response.data), extension: 'png' });
+          ws.addImage(imageId, { tl: { col: 0, row: rowIdx - 1 }, ext: { width: 150, height: 60 } });
+          ws.getCell(`A${rowIdx}`).value = 'Teacher Signature:';
+          ws.getCell(`A${rowIdx}`).font = { italic: true };
+        } catch (e) { console.error('Failed to add teacher signature image:', e.message); }
+      }
+
+      if (verification?.hod_id?.signature_url) {
+        try {
+          const response = await axios.get(verification.hod_id.signature_url, { responseType: 'arraybuffer' });
+          const imageId = workbook.addImage({ buffer: Buffer.from(response.data), extension: 'png' });
+          ws.addImage(imageId, { tl: { col: 2, row: rowIdx - 1 }, ext: { width: 150, height: 60 } });
+        } catch (e) { console.error('Failed to add HOD signature image:', e.message); }
+      }
+
+      ws.getCell(`C${rowIdx}:C${rowIdx}`).border = { bottom: { style: 'medium', color: { argb: 'FF1E3A5F' } } };
+      rowIdx += 3;
+    }
+
+    // 4. Summary Table
+    rowIdx += 2;
+    ws.mergeCells(`A${rowIdx}:D${rowIdx}`);
+    ws.getCell(`A${rowIdx}`).value = 'Summary';
+    ws.getCell(`A${rowIdx}`).font = { bold: true, size: 14, color: { argb: 'FF1E3A5F' } };
+    ws.getCell(`A${rowIdx}`).border = { bottom: { style: 'medium', color: { argb: 'FF1E3A5F' } } };
+    rowIdx++;
+
+    const summaryHeaderRow = ws.getRow(rowIdx++);
+    summaryHeaderRow.values = ['Criterion', 'Title', 'Marks', 'Fields Filled'];
+    summaryHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    summaryHeaderRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+    for(let i=1; i<=4; i++) {
+        summaryHeaderRow.getCell(i).border = borderStyle;
+    }
 
     NAAC_CRITERIA.forEach((c, i) => {
       let filled = 0, total = 0;
@@ -42,120 +169,14 @@ async function generateTeacherExcel(user, academicYear, allData, docs, NAAC_CRIT
         });
       }
       
-      const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
-      const status = verification?.status || 'Pending';
-      const row = summary.addRow([`Criterion ${c.no}`, c.title || '', CRITERION_MARKS[c.no] || 100, `${filled}/${total}`, `${pct}%`, status]);
-      row.eachCell((cell, colNumber) => {
+      const row = ws.getRow(rowIdx++);
+      row.values = [`Criterion ${c.no}`, c.title || '', CRITERION_MARKS[c.no] || 100, `${filled}/${total}`];
+      for(let j=1; j<=4; j++) {
+        const cell = row.getCell(j);
         cell.border = borderStyle;
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? 'FFE8F0FE' : 'FFFFFFFF' } };
-        if (colNumber === 6) {
-          cell.font = { bold: true, color: { argb: status === 'Verified' ? 'FF008000' : status === 'Needs Revision' ? 'FFFF0000' : 'FF666666' } };
-        }
-      });
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? 'FFF9FBFF' : 'FFFFFFFF' } };
+      }
     });
-    summary.columns = [{ width: 16 }, { width: 50 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }];
-    summary.views = [{ state: 'frozen', ySplit: 2 }];
-
-    for (const criterion of NAAC_CRITERIA) {
-      const ws = workbook.addWorksheet(`Criterion ${criterion.no}`);
-      ws.mergeCells('A1:D1');
-      const titleCell = ws.getCell('A1');
-      titleCell.value = `Criterion ${criterion.no}: ${criterion.title} (${CRITERION_MARKS[criterion.no] || 100} marks)`;
-      titleCell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
-      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-      const subHeader = ws.getRow(2);
-      subHeader.values = ['Field Description', 'Data Value', 'Supporting Documents', 'Verification Status'];
-      subHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      subHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E5090' } };
-      subHeader.eachCell(cell => cell.border = borderStyle);
-
-      let rowIdx = 3;
-      for (const sub of criterion.subCriteria) {
-        const subTitleRow = ws.getRow(rowIdx++);
-        subTitleRow.values = [`${sub.code}: ${sub.title}`, '', '', ''];
-        subTitleRow.font = { bold: true, italic: true };
-        subTitleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCFD8DC' } };
-        ws.mergeCells(`A${rowIdx - 1}:D${rowIdx - 1}`);
-        subTitleRow.eachCell(cell => cell.border = borderStyle);
-
-        const subData = allData[criterion.no]?.[sub.code] || {};
-        const subDocs = docs.filter(d => d.criterion_no === criterion.no && d.sub_criterion === sub.code);
-
-        for (const field of sub.fields) {
-          const val = subData[field.name] || 'Not Entered';
-          const docNames = subDocs.map(d => d.original_name).join(', ') || 'No Documents';
-          const status = subDocs[0]?.status || 'Pending';
-          const dataRow = ws.addRow([field.label || field.name, val, docNames, status]);
-          dataRow.eachCell(cell => {
-            cell.border = borderStyle;
-            cell.alignment = { wrapText: true, vertical: 'top' };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowIdx % 2 === 0 ? 'FFF9FBFF' : 'FFFFFFFF' } };
-          });
-          rowIdx++;
-        }
-      }
-      ws.columns = [{ width: 45 }, { width: 40 }, { width: 40 }, { width: 18 }];
-
-      if (verification?.status === 'Verified') {
-        rowIdx += 2;
-        const sigRow = ws.getRow(rowIdx);
-        sigRow.getCell(3).value = 'VERIFIED BY HOD';
-        sigRow.getCell(3).font = { bold: true, color: { argb: 'FF1E3A5F' } };
-        sigRow.getCell(3).alignment = { horizontal: 'right' };
-        
-        const dateRow = ws.getRow(rowIdx + 1);
-        const revDate = verification.reviewed_at ? new Date(verification.reviewed_at).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-        dateRow.getCell(3).value = `Date: ${revDate}`;
-        dateRow.getCell(3).font = { italic: true, size: 10 };
-        dateRow.getCell(3).alignment = { horizontal: 'right' };
-
-        // Add Teacher Signature if available
-        if (user.signature_url) {
-          try {
-            const response = await axios.get(user.signature_url, { responseType: 'arraybuffer' });
-            const imageId = workbook.addImage({
-              buffer: Buffer.from(response.data),
-              extension: 'png',
-            });
-            ws.addImage(imageId, {
-              tl: { col: 0, row: rowIdx - 1 },
-              ext: { width: 150, height: 60 }
-            });
-            ws.getCell(`A${rowIdx}`).value = 'Teacher Signature:';
-            ws.getCell(`A${rowIdx}`).font = { italic: true };
-          } catch (e) {
-            console.error('Failed to add signature image to Excel:', e.message);
-          }
-        }
-
-        ws.getCell(`C${rowIdx}:D${rowIdx}`).border = { bottom: { style: 'medium', color: { argb: 'FF1E3A5F' } } };
-      }
-      ws.views = [{ state: 'frozen', ySplit: 2 }];
-    }
-
-    const docSheet = workbook.addWorksheet('Document Inventory');
-    docSheet.getRow(1).values = ['File Name', 'Criterion Ref', 'Sub-Criterion', 'Upload Date', 'Status'];
-    docSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    docSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
-    docSheet.getRow(1).eachCell(cell => cell.border = borderStyle);
-    
-    docs.sort((a,b) => new Date(a.upload_date) - new Date(b.upload_date)).forEach((d, i) => {
-      let formattedDate = 'N/A';
-      if (d.upload_date) {
-        const dateObj = new Date(d.upload_date);
-        if (!isNaN(dateObj.getTime())) {
-          formattedDate = dateObj.toISOString().substring(0, 10);
-        }
-      }
-      const r = docSheet.addRow([d.original_name, `Criterion ${d.criterion_no}`, d.sub_criterion, formattedDate, d.status]);
-      r.eachCell(cell => {
-        cell.border = borderStyle;
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? 'FFE8F0FE' : 'FFFFFFFF' } };
-      });
-    });
-    docSheet.columns = [{ width: 40 }, { width: 15 }, { width: 20 }, { width: 15 }, { width: 15 }];
 
     return await workbook.xlsx.writeBuffer();
   } catch (err) {
@@ -171,8 +192,19 @@ async function generateConsolidatedExcel(teachers, academicYear, criteriaByTeach
   const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
   const headerFont = { bold: true, color: { argb: 'FFFFFFFF' } };
 
-  // Summary sheet
-  const summary = workbook.addWorksheet('Consolidated Summary');
+  // Single sheet
+  const summary = workbook.addWorksheet('Consolidated Report');
+  
+  // Set columns that compromise between summary and criteria tables
+  summary.columns = [
+    { width: 30 }, // A: Teacher Name / Staff Member
+    { width: 25 }, // B: Department
+    { width: 35 }, // C: Email Address / Metric Code
+    { width: 45 }, // D: Metrics Filled / Metric Description
+    { width: 45 }, // E: Total Files / Data Response
+    { width: 15 }  // F: Overall Status
+  ];
+
   summary.mergeCells('A1:F1');
   summary.getCell('A1').value = `NAAC Consolidated Report — Academic Year: ${academicYear}`;
   summary.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
@@ -183,8 +215,11 @@ async function generateConsolidatedExcel(teachers, academicYear, criteriaByTeach
   summaryHeader.values = ['Teacher Name', 'Department', 'Email Address', 'Metrics Filled', 'Total Files', 'Overall Status'];
   summaryHeader.fill = headerFill;
   summaryHeader.font = headerFont;
-  summaryHeader.eachCell(cell => cell.border = borderStyle);
+  for (let i = 1; i <= 6; i++) {
+    summaryHeader.getCell(i).border = borderStyle;
+  }
 
+  let rowIdx = 3;
   teachers.forEach((t, i) => {
     let filledCount = 0;
     if (criteriaByTeacher[t._id]) {
@@ -200,57 +235,90 @@ async function generateConsolidatedExcel(teachers, academicYear, criteriaByTeach
         .sort((a,b) => new Date(b.reviewed_at) - new Date(a.reviewed_at))[0];
     const status = verif ? verif.status : 'Pending';
 
-    const r = summary.addRow([t.name, t.department || 'N/A', t.email, filledCount, docCount, status]);
-    r.eachCell(cell => {
+    const r = summary.getRow(rowIdx++);
+    r.values = [t.name, t.department || 'N/A', t.email, filledCount, docCount, status];
+    for (let j = 1; j <= 6; j++) {
+      const cell = r.getCell(j);
       cell.border = borderStyle;
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? 'FFE8F0FE' : 'FFFFFFFF' } };
-    });
+    }
   });
-  summary.columns = [{ width: 30 }, { width: 25 }, { width: 35 }, { width: 15 }, { width: 15 }, { width: 15 }];
-  summary.views = [{ state: 'frozen', ySplit: 2 }];
 
-  // One sheet per criterion with all teachers
+  rowIdx += 2; // Leave some space between summary and criteria details
+
+  // Combine all criteria in the same sheet
   for (const criterion of NAAC_CRITERIA) {
-    const ws = workbook.addWorksheet(`C${criterion.no} - Combined`);
-    ws.mergeCells('A1:E1');
-    const wsTitle = ws.getCell('A1');
+    // 1. Check if ANY teacher has data for this criterion
+    let criterionHasData = false;
+    for (const t of teachers) {
+       if (criteriaByTeacher[t._id]?.[criterion.no] && Object.keys(criteriaByTeacher[t._id][criterion.no]).length > 0) {
+           criterionHasData = true;
+           break;
+       }
+    }
+
+    if (!criterionHasData) continue; // Skip empty criteria sections
+
+    summary.mergeCells(`A${rowIdx}:E${rowIdx}`);
+    const wsTitle = summary.getCell(`A${rowIdx}`);
     wsTitle.value = `Criterion ${criterion.no}: ${criterion.title} — All Staff — ${academicYear}`;
     wsTitle.fill = headerFill;
     wsTitle.font = { ...headerFont, size: 12 };
     wsTitle.alignment = { horizontal: 'center' };
+    rowIdx++;
 
     const headers = ['Staff Member', 'Department', 'Metric Code', 'Metric Description', 'Data Response'];
-    const row2 = ws.getRow(2);
+    const row2 = summary.getRow(rowIdx++);
     row2.values = headers;
     row2.fill = headerFill;
     row2.font = headerFont;
-    row2.eachCell(cell => cell.border = borderStyle);
+    for (let i = 1; i <= 5; i++) {
+      row2.getCell(i).border = borderStyle;
+    }
 
-    let rowIdx = 3;
+    let bgToggle = 0; // Group background color by teacher
+
     for (const t of teachers) {
+      const tCritData = criteriaByTeacher[t._id]?.[criterion.no];
+      if (!tCritData || Object.keys(tCritData).length === 0) continue;
+
+      bgToggle++;
+      const rowColor = bgToggle % 2 === 0 ? 'FFF9FBFF' : 'FFFFFFFF';
+      
+      let isFirstRowForTeacher = true;
+
       for (const sub of criterion.subCriteria) {
-        const subData = criteriaByTeacher[t._id]?.[criterion.no]?.[sub.code];
+        const subData = tCritData[sub.code];
         if (!subData) continue;
         
+        // Lookup proper labels for fields
+        const fieldsLookup = {};
+        if (sub.fields) {
+           sub.fields.forEach(f => fieldsLookup[f.name] = f.label || f.name);
+        }
+
         Object.keys(subData).forEach(fieldName => {
-            const r = ws.addRow([t.name, t.department || 'N/A', sub.code, fieldName, subData[fieldName]]);
-            r.eachCell(cell => {
+            const r = summary.getRow(rowIdx++);
+            
+            // Print Name & Dept only once per teacher block
+            const nameToPrint = isFirstRowForTeacher ? t.name : '';
+            const deptToPrint = isFirstRowForTeacher ? (t.department || 'N/A') : '';
+            isFirstRowForTeacher = false;
+
+            // Use human-readable field name
+            const niceFieldName = fieldsLookup[fieldName] || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+            r.values = [nameToPrint, deptToPrint, sub.code, niceFieldName, subData[fieldName]];
+            for (let i = 1; i <= 5; i++) {
+              const cell = r.getCell(i);
               cell.border = borderStyle;
               cell.alignment = { wrapText: true, vertical: 'top' };
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowIdx % 2 === 0 ? 'FFF9FBFF' : 'FFFFFFFF' } };
-            });
-            rowIdx++;
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowColor } };
+            }
         });
       }
     }
-    ws.columns = [
-      { width: 30 }, 
-      { width: 25 }, 
-      { width: 15 }, 
-      { width: 45 }, 
-      { width: 45 }
-    ];
-    ws.views = [{ state: 'frozen', ySplit: 2 }];
+    rowIdx++; // Space between criteria
   }
 
   return workbook.xlsx.writeBuffer();

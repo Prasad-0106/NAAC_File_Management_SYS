@@ -50,7 +50,7 @@ router.post('/save', async (req, res) => {
 router.get('/hod/summary/:academic_year', requireHOD, async (req, res) => {
   try {
     const { academic_year } = req.params;
-    const teachers = await User.find({ role: 'teacher', department: req.user.department }).lean();
+    const teachers = await User.find({ role: 'teacher', department: req.user.department, status: { $ne: 'Pending' } }).lean();
     
     const result = await Promise.all(teachers.map(async (t) => {
       const criteriaDocs = await CriteriaData.find({ user_id: t._id, academic_year }).lean();

@@ -11,7 +11,19 @@ router.get('/', authenticate, requireHOD, async (req, res) => {
     const offset = (page - 1) * limit;
     const actionFilter = req.query.action;
 
-    const query = {};
+    const User = require('../models/User');
+    const departmentUsers = await User.find({ department: req.user.department }).select('_id');
+    const departmentUserIds = departmentUsers.map(u => u._id);
+
+    const query = {
+      user_role: { $ne: 'superadmin' },
+      action: { $nin: ['UPDATE_PROFILE', 'LOGIN_FAILED'] },
+      $or: [
+        { user_id: { $in: departmentUserIds } },
+        { target_id: { $in: departmentUserIds } }
+      ]
+    };
+
     if (actionFilter) {
       query.action = actionFilter;
     }

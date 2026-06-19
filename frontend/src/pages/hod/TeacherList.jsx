@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { ACADEMIC_YEARS } from '../../data/naacCriteria';
 import { Users, Building2 } from 'lucide-react';
 import api from '../../utils/api';
 
 export default function TeacherList() {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [deptFilter, setDeptFilter] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -19,27 +20,27 @@ export default function TeacherList() {
     }).finally(() => setLoading(false));
   }, [year]);
 
-  const departments = [...new Set(teachers.map(t => t.department).filter(Boolean))].sort();
   const filtered = teachers.filter(t =>
-    (!search || t.name.toLowerCase().includes(search.toLowerCase()) || t.email.toLowerCase().includes(search.toLowerCase())) &&
-    (!deptFilter || t.department === deptFilter)
+    (!search || t.name.toLowerCase().includes(search.toLowerCase()) || t.email.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
     <div className="fade-in">
       <div className="page-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
         <div><h1><Users size={24} style={{ verticalAlign:'middle', marginRight:'0.5rem' }} /> All Teachers</h1><p>Browse and manage all registered teachers</p></div>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
 
-      <div style={{ display:'flex', gap:'0.75rem', marginBottom:'1.25rem', flexWrap:'wrap' }}>
+      <div style={{ display:'flex', gap:'0.75rem', marginBottom:'1.25rem', flexWrap:'wrap', alignItems:'center' }}>
         <input className="input" style={{ maxWidth:280 }} placeholder="Search by name or email..." value={search} onChange={e=>setSearch(e.target.value)} />
-        <select className="select" style={{ width:'auto' }} value={deptFilter} onChange={e=>setDeptFilter(e.target.value)}>
-          <option value="">All Departments</option>
-          {departments.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
+        {user?.department && (
+          <div style={{ background:'var(--surface)', color:'var(--text)', border:'1px solid var(--border)', borderRadius:'8px', display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 1rem', fontSize:'0.875rem', fontWeight:600 }}>
+            <Building2 size={16} color="var(--primary)" />
+            {user.department} Department
+          </div>
+        )}
       </div>
 
       {loading ? (

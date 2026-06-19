@@ -22,6 +22,7 @@ export default function ProfileSetup() {
     if (!form.department) return setError('Department is required');
     if (user?.role === 'teacher' && !form.designation) return setError('Designation is required');
     if (form.phone && !/^\d{10}$/.test(form.phone)) return setError('Phone number must be exactly 10 digits');
+    if (!signature) return setError('Please upload your digital signature to continue.');
     
     setLoading(true);
     try {
@@ -94,7 +95,7 @@ export default function ProfileSetup() {
             <input className="input" placeholder="+91 9876543210" value={form.phone} onChange={e=>set('phone',e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Digital Signature</label>
+            <label className="form-label">Digital Signature <span className="required">*</span></label>
             <div style={{ display:'flex', gap:'1rem', alignItems:'center' }}>
               {signature ? (
                 <div style={{ position:'relative', border:'1px solid var(--border)', borderRadius:'8px', padding:'4px', background:'#fff' }}>

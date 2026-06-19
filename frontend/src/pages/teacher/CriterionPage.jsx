@@ -7,7 +7,7 @@ export default function CriterionPage() {
   const { criterionNo } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [year, setYear] = useState(params.get('year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => params.get('year') || localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [criterionData, setCriterionData] = useState({});
 
   const criterion = NAAC_CRITERIA.find(c => c.no === criterionNo);
@@ -27,7 +27,7 @@ export default function CriterionPage() {
           <h1 style={{ fontSize:'1.5rem' }}>Criterion {criterion.no}: {criterion.title}</h1>
           <p style={{ fontSize:'0.85rem' }}>{criterion.marks} Marks — Select a sub-criterion to fill the form</p>
         </div>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>

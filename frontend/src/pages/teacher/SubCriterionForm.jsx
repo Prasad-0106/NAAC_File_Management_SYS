@@ -49,7 +49,7 @@ export default function SubCriterionForm() {
   const { criterionNo, subCode } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [year, setYear] = useState(params.get('year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => params.get('year') || localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [formData, setFormData] = useState({});
   const [docs, setDocs] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -129,7 +129,7 @@ export default function SubCriterionForm() {
           <h1 style={{ fontSize:'1.25rem' }}>{sub.code}: {sub.title}</h1>
           <p style={{ fontSize:'0.8rem' }}>Criterion {criterionNo}: {criterion.title}</p>
         </div>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>

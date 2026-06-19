@@ -4,7 +4,7 @@ import api from '../../utils/api';
 import { Download, BarChart3, Info, ListChecks } from 'lucide-react';
 
 export default function HodExport() {
-  const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [loading, setLoading] = useState(false);
 
   const exportConsolidated = async () => {
@@ -33,7 +33,7 @@ export default function HodExport() {
 
       <div className="form-group" style={{ marginBottom:'1.5rem' }}>
         <label className="form-label">Academic Year</label>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>

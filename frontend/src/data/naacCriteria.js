@@ -274,7 +274,7 @@ export const NAAC_CRITERIA = [
   }
 ];
 
-export const ACADEMIC_YEARS = ['2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+export const ACADEMIC_YEARS = ['2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26','2026-27'];
 
 export const CRITERION_COLORS = {
   '1': '#6366f1', '2': '#0ea5e9', '3': '#10b981',

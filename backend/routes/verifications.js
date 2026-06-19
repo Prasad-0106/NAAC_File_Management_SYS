@@ -48,7 +48,10 @@ router.get('/teacher/:teacher_id', async (req, res) => {
   try {
     if (req.user.role !== 'hod' && req.user.id !== req.params.teacher_id) return res.status(403).json({ error: 'Forbidden' });
     
-    const verifs = await Verification.find({ teacher_id: req.params.teacher_id })
+    const query = { teacher_id: req.params.teacher_id };
+    if (req.query.academic_year) query.academic_year = req.query.academic_year;
+
+    const verifs = await Verification.find(query)
       .sort({ reviewed_at: -1 })
       .lean();
       

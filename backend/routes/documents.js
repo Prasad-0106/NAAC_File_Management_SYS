@@ -32,7 +32,7 @@ const upload = multer({
 function uploadToCloudinary(buffer, originalName) {
   return new Promise((resolve, reject) => {
     const ext = path.extname(originalName).toLowerCase().replace('.', '');
-    const resourceType = ['jpg', 'jpeg', 'png'].includes(ext) ? 'image' : 'raw';
+    const resourceType = ['jpg', 'jpeg', 'png', 'pdf'].includes(ext) ? 'image' : 'raw';
 
     const stream = cloudinary.uploader.upload_stream(
       {
@@ -128,7 +128,7 @@ router.delete('/:id', async (req, res) => {
     // Delete from Cloudinary
     if (doc.stored_name) {
       const ext = path.extname(doc.original_name).toLowerCase().replace('.', '');
-      const resourceType = ['jpg', 'jpeg', 'png'].includes(ext) ? 'image' : 'raw';
+      const resourceType = ['jpg', 'jpeg', 'png', 'pdf'].includes(ext) ? 'image' : 'raw';
       await cloudinary.uploader.destroy(doc.stored_name, { resource_type: resourceType });
     }
 

@@ -34,7 +34,7 @@ router.post('/broadcast', requireHOD, async (req, res) => {
     const { subject, message } = req.body;
     if (!subject || !message) return res.status(400).json({ error: 'Missing fields' });
 
-    const teachers = await User.find({ role: 'teacher', department: req.user.department }).lean();
+    const teachers = await User.find({ role: 'teacher', department: req.user.department, status: { $ne: 'Pending' } }).lean();
     
     const notifs = teachers.map(t => ({
       recipient_id: t._id,

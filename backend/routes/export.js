@@ -13,7 +13,7 @@ router.use(authenticate);
 // Get all teachers for HOD dropdowns
 router.get('/teachers', requireHOD, async (req, res) => {
   try {
-    const teachers = await User.find({ role: 'teacher', department: req.user.department }).select('id name department designation').lean();
+    const teachers = await User.find({ role: 'teacher', department: req.user.department, status: { $ne: 'Pending' } }).select('id name department designation').lean();
     const results = teachers.map(t => ({ ...t, id: t._id }));
     res.json(results);
   } catch (err) {
@@ -40,7 +40,10 @@ router.get('/pdf-data/:academic_year', async (req, res) => {
 
     const docs = await Document.find({ user_id: userId, academic_year }).lean();
     
-    const verification = await Verification.findOne({ teacher_id: userId, academic_year }).sort({ reviewed_at: -1 }).lean();
+    const verification = await Verification.findOne({ teacher_id: userId, academic_year })
+      .sort({ reviewed_at: -1 })
+      .populate('hod_id', 'signature_url name')
+      .lean();
     
     res.json({
       user,
@@ -48,7 +51,9 @@ router.get('/pdf-data/:academic_year', async (req, res) => {
       criteria: NAAC_CRITERIA,
       data,
       documents: docs,
-      verificationStatus: verification?.status || 'Pending'
+      verificationStatus: verification?.status || 'Pending',
+      hodSignature: verification?.hod_id?.signature_url || null,
+      hodName: verification?.hod_id?.name || null
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -70,7 +75,10 @@ router.get('/excel/:academic_year', async (req, res) => {
       data[r.criterion_no][r.sub_criterion][r.field_name] = r.field_value;
     });
     const docs = await Document.find({ user_id: userId, academic_year }).lean();
-    const verification = await Verification.findOne({ teacher_id: userId, academic_year }).sort({ reviewed_at: -1 }).lean();
+    const verification = await Verification.findOne({ teacher_id: userId, academic_year })
+      .sort({ reviewed_at: -1 })
+      .populate('hod_id', 'signature_url name')
+      .lean();
     
     const buffer = await generateTeacherExcel(user, academic_year, data, docs, NAAC_CRITERIA, verification);
     
@@ -88,7 +96,7 @@ router.get('/consolidated/:academic_year', requireHOD, async (req, res) => {
   try {
     const { academic_year } = req.params;
     
-    const teachers = await User.find({ role: 'teacher', department: req.user.department }).lean();
+    const teachers = await User.find({ role: 'teacher', department: req.user.department, status: { $ne: 'Pending' } }).lean();
     const allCriteria = await CriteriaData.find({ academic_year }).lean();
     const allDocs = await Document.find({ academic_year }).populate('user_id', 'name department').lean();
     const allVerifications = await Verification.find({ academic_year }).lean();

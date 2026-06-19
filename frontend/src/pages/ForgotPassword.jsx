@@ -29,13 +29,16 @@ export default function ForgotPassword() {
 
   return (
     <div className="auth-page">
-      <button className="btn btn-ghost" onClick={toggleTheme} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', borderRadius: '50%', padding: '0.5rem' }}>
-        {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-      </button>
       <div className="auth-card card card-lg fade-in">
+        {/* Theme toggle inside card — top right corner */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+          <button className="btn btn-ghost btn-sm" onClick={toggleTheme} style={{ borderRadius: '50%', padding: '0.4rem' }} title="Toggle theme">
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+        </div>
         <div className="auth-logo" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-          <GraduationCap size={48} color="var(--primary)" />
-          <h1 style={{ margin: 0, fontSize: '1.5rem', lineHeight: 1.2 }}>Dr. Babasaheb Ambedkar Technological University</h1>
+          <GraduationCap size={44} color="var(--accent)" />
+          <h1 style={{ margin: 0, fontSize: '1.4rem', lineHeight: 1.2 }}>Dr. Babasaheb Ambedkar Technological University</h1>
           <p style={{ margin: 0, color: 'var(--accent)', fontWeight: 600, marginTop: '0.25rem' }}>(DBATU) NAAC Portal</p>
         </div>
         <h2 style={{ marginBottom: '1rem', textAlign: 'center' }}>Reset Password</h2>

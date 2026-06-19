@@ -27,12 +27,11 @@ const router = express.Router();
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, department, designation, qualification, experience, phone } = req.body;
-    if (!name || !email || !role) {
-      return res.status(400).json({ error: 'Name, email, and role are required' });
-    }
-    if (role === 'teacher' && !password) {
-      return res.status(400).json({ error: 'Password is required for teachers' });
+    const { name, email, department, designation, phone, qualification, experience } = req.body;
+    const role = 'teacher'; // Force all public registrations to be teachers
+    
+    if (!name || !email || !department) {
+      return res.status(400).json({ error: 'Name, email, and department are required' });
     }
 
     const existingUser = await User.findOne({ email });
@@ -40,30 +39,20 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    let finalPassword = password;
-    if (role === 'hod') {
-      finalPassword = 'DBATU2026';
-    }
-
-    const password_hash = await bcrypt.hash(finalPassword, 10);
-    const profile_complete = (role === 'hod' || (department && designation)) ? 1 : 0;
+    // Set a complex random placeholder password. HOD will approve and generate the real one.
+    const password_hash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+    const profile_complete = 0; // Force to 0 so they must upload signature after approval
 
     const user = new User({
-      name, email, password_hash, role, department, designation, qualification, experience, phone, profile_complete
+      name, email, password_hash, role, department, designation, qualification, experience, phone, profile_complete,
+      status: 'Pending'
     });
     await user.save();
 
-    logAudit(user._id, user.name, user.role, 'REGISTER', 'users', user._id, 'User registered', req.ip);
+    logAudit(user._id, user.name, user.role, 'REGISTER_REQUEST', 'users', user._id, 'Teacher requested registration', req.ip);
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
-    
-    // Convert to plain object and remove password
-    const userObj = user.toObject();
-    delete userObj.password_hash;
-    // ensure id matches what frontend expects
-    userObj.id = userObj._id;
-
-    res.json({ token, user: userObj });
+    // Return success without JWT, since they cannot log in yet
+    res.json({ message: 'Registration request submitted. Your HOD will review and email you the credentials once approved.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error during registration' });
@@ -79,6 +68,16 @@ router.post('/login', async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       logAudit(null, email, 'Unknown', 'LOGIN_FAILED', 'users', null, 'Invalid credentials', req.ip);
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (user.status === 'Pending') {
+      return res.status(403).json({ error: 'Your account is pending approval from your HOD.' });
+    }
+
+    if (user.forcePasswordReset) {
+      // Issue a short-lived token specifically for password reset
+      const resetToken = jwt.sign({ id: user._id, purpose: 'force_reset' }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '15m' });
+      return res.json({ requirePasswordReset: true, resetToken, email: user.email });
     }
 
     logAudit(user._id, user.name, user.role, 'LOGIN', 'users', user._id, 'User logged in', req.ip);
@@ -157,11 +156,33 @@ router.post('/forgot-password', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
     
+    const emailHtml = `
+<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+  <div style="background-color: #2563eb; color: white; padding: 24px; text-align: center;">
+    <h2 style="margin: 0; font-size: 24px; letter-spacing: 0.5px;">DBATU NAAC Portal</h2>
+  </div>
+  <div style="padding: 32px; background-color: #ffffff; color: #1f2937;">
+    <p style="font-size: 16px; margin-top: 0;">Hello,</p>
+    <p style="font-size: 15px; line-height: 1.6;">We received a request to reset the password for your account on the NAAC File Management Portal.</p>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block;">Reset Password</a>
+    </div>
+    
+    <p style="font-size: 14px; color: #6b7280; margin-bottom: 24px; line-height: 1.5;">If you did not request this password reset, please ignore this email or contact support if you have questions. This link will expire in 1 hour.</p>
+    
+    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+    <p style="font-size: 14px; color: #6b7280; margin-bottom: 0; line-height: 1.5;">Regards,<br><strong style="color: #374151;">System Administrator</strong><br>NAAC Portal – DBATU</p>
+  </div>
+</div>
+    `.trim();
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: user.email,
       subject: 'NAAC Portal - Password Reset',
-      text: `You requested a password reset. Please click the link below to reset your password:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email.`
+      text: `You requested a password reset. Please click the link below to reset your password:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email.`,
+      html: emailHtml
     };
 
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
@@ -203,6 +224,289 @@ router.post('/reset-password', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+// ─── Force Password Reset (first login with temp password) ──────────────────
+router.post('/set-permanent-password', async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+    if (!resetToken || !newPassword) return res.status(400).json({ error: 'Token and new password required' });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, process.env.JWT_SECRET || 'fallback_secret');
+    } catch {
+      return res.status(401).json({ error: 'Token invalid or expired. Please log in again.' });
+    }
+
+    if (decoded.purpose !== 'force_reset') return res.status(401).json({ error: 'Invalid token purpose.' });
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.password_hash = await bcrypt.hash(newPassword, 10);
+    user.forcePasswordReset = false;
+    user.status = 'Active';
+    await user.save();
+
+    logAudit(user._id, user.name, user.role, 'SET_PERMANENT_PASSWORD', 'users', user._id, 'Teacher set permanent password', req.ip);
+
+    // Now issue full session token
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+    const userObj = user.toObject();
+    delete userObj.password_hash;
+    userObj.id = userObj._id;
+    res.json({ token, user: userObj });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── SuperAdmin: Invite a new HOD ───────────────────────────────────────────
+router.post('/superadmin/invite-hod', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+
+    const { name, email, department } = req.body;
+    if (!name || !email || !department) return res.status(400).json({ error: 'Name, email, department required' });
+
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ error: 'Email already registered' });
+
+    // Create HOD with a random temp password
+    const tempPassword = crypto.randomBytes(5).toString('hex').toUpperCase(); // e.g. "A3F7B2"
+    const password_hash = await bcrypt.hash(tempPassword, 10);
+
+    const hod = new User({
+      name, email, password_hash, role: 'hod', department,
+      status: 'Active', // HOD is active immediately but must reset password on first login
+      forcePasswordReset: true,
+      profile_complete: 0,
+    });
+    await hod.save();
+
+    logAudit(req.user.id, req.user.name, 'superadmin', 'INVITE_HOD', 'users', hod._id, `Invited HOD: ${email}`, req.ip);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const emailBody = `
+Dear ${name},
+
+You have been registered as the Head of Department (HOD) for the ${department} department on the NAAC File Management Portal at DBATU.
+
+Your login credentials are:
+  Email:    ${email}
+  Password: ${tempPassword}
+
+You will be asked to set a new permanent password on your first login.
+
+Portal Link: ${frontendUrl}/login
+
+Please do not share these credentials with anyone.
+
+Regards,
+NAAC Portal – Super Admin
+    `.trim();
+
+    const emailHtml = `
+<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+  <div style="background-color: #2563eb; color: white; padding: 24px; text-align: center;">
+    <h2 style="margin: 0; font-size: 24px; letter-spacing: 0.5px;">DBATU NAAC Portal</h2>
+  </div>
+  <div style="padding: 32px; background-color: #ffffff; color: #1f2937;">
+    <p style="font-size: 16px; margin-top: 0;">Dear <strong>${name}</strong>,</p>
+    <p style="font-size: 15px; line-height: 1.6;">You have been registered as the Head of Department (HOD) for the <strong>${department}</strong> department on the NAAC File Management Portal at DBATU.</p>
+    
+    <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #2563eb;">
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; font-weight: bold;">Your Account Details</p>
+      <p style="margin: 8px 0; font-size: 16px;"><strong>Email:</strong> ${email}</p>
+      <p style="margin: 8px 0; font-size: 16px;"><strong>Password:</strong> <span style="font-family: monospace; background: #e5e7eb; padding: 2px 6px; border-radius: 4px;">${tempPassword}</span></p>
+    </div>
+    
+    <p style="font-size: 14px; color: #b91c1c; background-color: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #f87171;">
+      <strong>Security Notice:</strong> For your protection, you will be required to set a new permanent password immediately upon your first login.
+    </p>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${frontendUrl}/login" style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block;">Login to Portal</a>
+    </div>
+    
+    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+    <p style="font-size: 14px; color: #6b7280; margin-bottom: 0; line-height: 1.5;">Regards,<br><strong style="color: #374151;">Super Admin</strong><br>NAAC Portal – DBATU</p>
+  </div>
+</div>
+    `.trim();
+
+    let emailSuccess = false;
+    let emailErrorMsg = '';
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: 'NAAC Portal – HOD Account Created',
+          text: emailBody,
+          html: emailHtml
+        });
+        emailSuccess = true;
+      } catch (emailErr) {
+        console.error('Email sending failed:', emailErr.message);
+        emailErrorMsg = emailErr.message;
+      }
+    } else {
+      console.log('EMAIL NOT CONFIGURED. Temp Password:', tempPassword);
+    }
+
+    if (emailSuccess) {
+      res.json({ success: true, message: `HOD account created and credentials emailed to ${email}. (Please inform them to check their SPAM folder!)` });
+    } else {
+      res.json({ success: true, message: `HOD created, but email failed. Give this password manually: ${tempPassword}` });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── SuperAdmin: List all HODs ───────────────────────────────────────────────
+router.get('/superadmin/hods', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+    const hods = await User.find({ role: 'hod' }).select('-password_hash').lean();
+    res.json(hods.map(h => ({ ...h, id: h._id })));
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── HOD: Approve a pending teacher ─────────────────────────────────────────
+router.post('/hod/approve-teacher', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'hod') return res.status(403).json({ error: 'Forbidden' });
+    const { teacherId } = req.body;
+    if (!teacherId) return res.status(400).json({ error: 'teacherId required' });
+
+    const teacher = await User.findById(teacherId);
+    if (!teacher || teacher.role !== 'teacher') return res.status(404).json({ error: 'Teacher not found' });
+    if (teacher.status !== 'Pending') return res.status(400).json({ error: 'Teacher is not in Pending state' });
+    if (teacher.department !== req.user.department) return res.status(403).json({ error: 'Teacher is not in your department' });
+
+    // Generate a readable temporary password
+    const tempPassword = crypto.randomBytes(4).toString('hex').toUpperCase() + Math.floor(10 + Math.random() * 90);
+    teacher.password_hash = await bcrypt.hash(tempPassword, 10);
+    teacher.status = 'Approved';
+    teacher.forcePasswordReset = true;
+    await teacher.save();
+
+    logAudit(req.user.id, req.user.name, 'hod', 'APPROVE_TEACHER', 'users', teacher._id, `Approved teacher: ${teacher.email}`, req.ip);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const emailBody = `
+Dear ${teacher.name},
+
+Your registration request for the NAAC File Management Portal has been approved by the Head of Department, ${req.user.department} Department.
+
+Your login credentials are:
+  Email:    ${teacher.email}
+  Password: ${tempPassword}
+
+You will be asked to set a new permanent password upon your first login.
+
+Portal Link: ${frontendUrl}/login
+
+Please do not share these credentials with anyone.
+
+Regards,
+${req.user.name}
+HOD, ${req.user.department}
+NAAC Portal – DBATU
+    `.trim();
+
+    const emailHtml = `
+<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+  <div style="background-color: #2563eb; color: white; padding: 24px; text-align: center;">
+    <h2 style="margin: 0; font-size: 24px; letter-spacing: 0.5px;">DBATU NAAC Portal</h2>
+  </div>
+  <div style="padding: 32px; background-color: #ffffff; color: #1f2937;">
+    <p style="font-size: 16px; margin-top: 0;">Dear <strong>${teacher.name}</strong>,</p>
+    <p style="font-size: 15px; line-height: 1.6;">Your registration request for the NAAC File Management Portal has been officially <strong>approved</strong> by the Head of the <strong>${req.user.department}</strong> Department.</p>
+    
+    <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #10b981;">
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; font-weight: bold;">Your Login Details</p>
+      <p style="margin: 8px 0; font-size: 16px;"><strong>Email:</strong> ${teacher.email}</p>
+      <p style="margin: 8px 0; font-size: 16px;"><strong>Password:</strong> <span style="font-family: monospace; background: #e5e7eb; padding: 2px 6px; border-radius: 4px;">${tempPassword}</span></p>
+    </div>
+    
+    <p style="font-size: 14px; color: #b91c1c; background-color: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #f87171;">
+      <strong>Security Notice:</strong> You will be required to set a new permanent password immediately upon your first login.
+    </p>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${frontendUrl}/login" style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block;">Access Portal</a>
+    </div>
+    
+    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+    <p style="font-size: 14px; color: #6b7280; margin-bottom: 0; line-height: 1.5;">Regards,<br><strong style="color: #374151;">${req.user.name}</strong><br>Head of Department, ${req.user.department}<br>NAAC Portal – DBATU</p>
+  </div>
+</div>
+    `.trim();
+
+    let emailSuccess = false;
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: teacher.email,
+          subject: 'NAAC Portal – Your Access Has Been Approved',
+          text: emailBody,
+          html: emailHtml
+        });
+        emailSuccess = true;
+      } catch (emailErr) {
+        console.error('Email sending failed:', emailErr.message);
+      }
+    } else {
+      console.log(`EMAIL NOT CONFIGURED. Temp password for ${teacher.email}:`, tempPassword);
+    }
+
+    if (emailSuccess) {
+      res.json({ success: true, message: `Teacher approved and credentials emailed to ${teacher.email}. (Please inform them to check their SPAM folder!)` });
+    } else {
+      res.json({ success: true, message: `Approved, but email failed. Give this password manually: ${tempPassword}` });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── HOD: Reject a pending teacher ──────────────────────────────────────────
+router.post('/hod/reject-teacher', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'hod') return res.status(403).json({ error: 'Forbidden' });
+    const { teacherId } = req.body;
+    const teacher = await User.findById(teacherId);
+    if (!teacher || teacher.role !== 'teacher') return res.status(404).json({ error: 'Teacher not found' });
+    if (teacher.department !== req.user.department) return res.status(403).json({ error: 'Forbidden' });
+    await User.deleteOne({ _id: teacherId });
+    logAudit(req.user.id, req.user.name, 'hod', 'REJECT_TEACHER', 'users', teacherId, `Rejected teacher: ${teacher.email}`, req.ip);
+    res.json({ success: true, message: 'Teacher request rejected and removed.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── HOD: Get pending teachers in own department ─────────────────────────────
+router.get('/hod/pending-teachers', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'hod') return res.status(403).json({ error: 'Forbidden' });
+    const pending = await User.find({ role: 'teacher', department: req.user.department, status: 'Pending' }).select('-password_hash').lean();
+    res.json(pending.map(t => ({ ...t, id: t._id })));
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 router.get('/me', authenticate, async (req, res) => {
   try {

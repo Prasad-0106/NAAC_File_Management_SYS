@@ -8,7 +8,7 @@ const STATUS_BADGE = { Pending: 'badge-pending', Verified: 'badge-verified', 'Ne
 
 export default function HodDashboard() {
   const navigate = useNavigate();
-  const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +36,7 @@ export default function HodDashboard() {
             <p style={{ margin: 0, color: 'var(--text-muted)' }}>Monitor NAAC documentation progress for your department</p>
           </div>
         </div>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>

@@ -6,7 +6,7 @@ import { Download, Printer, FileText, BarChart3, CheckCircle2, Info } from 'luci
 
 export default function ExportPage() {
   const { user } = useAuth();
-  const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [loading, setLoading] = useState({ excel: false, pdf: false });
 
   const exportExcel = async () => {
@@ -51,7 +51,7 @@ export default function ExportPage() {
 
       <div className="form-group" style={{ marginBottom:'1.5rem' }}>
         <label className="form-label">Academic Year</label>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
@@ -146,10 +146,17 @@ function buildPDFHtml(data) {
     });
     
     if (verificationStatus === 'Verified') {
-      html += `<div class="watermark">
-        ${user.signature_url ? `<img src="${user.signature_url}" alt="Teacher Signature" />` : '<div style="height:40px"></div>'}
-        <p>${user.name}</p>
-        <p style="font-size: 10px; color: green;">VERIFIED BY HOD: ${today}</p>
+      html += `<div class="watermark" style="display:flex; justify-content:space-between; align-items:flex-end;">
+        <div style="text-align:left;">
+          ${user.signature_url ? `<img src="${user.signature_url}" alt="Teacher Signature" style="max-width:120px; border-bottom: 1px solid #1e3a5f;" />` : '<div style="height:40px; border-bottom: 1px solid #ccc; width:120px;"></div>'}
+          <p>${user.name}</p>
+          <p style="font-size: 10px; color: #555;">Teacher</p>
+        </div>
+        <div style="text-align:right;">
+          ${data.hodSignature ? `<img src="${data.hodSignature}" alt="HOD Signature" style="max-width:120px; border-bottom: 1px solid #1e3a5f;" />` : '<div style="height:40px; border-bottom: 1px solid #ccc; width:120px;"></div>'}
+          <p>${data.hodName || 'HOD'}</p>
+          <p style="font-size: 10px; color: green;">VERIFIED BY HOD: ${today}</p>
+        </div>
       </div>`;
     }
     

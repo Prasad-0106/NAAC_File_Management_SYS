@@ -5,7 +5,7 @@ import api from '../../utils/api';
 
 export default function CriteriaOverview() {
   const navigate = useNavigate();
-  const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [allData, setAllData] = useState({});
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export default function CriteriaOverview() {
           <h1>📋 NAAC Criteria</h1>
           <p>Select a criterion to view and fill its sub-criteria forms</p>
         </div>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>

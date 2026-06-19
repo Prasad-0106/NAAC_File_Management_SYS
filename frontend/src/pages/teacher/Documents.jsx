@@ -3,7 +3,7 @@ import { ACADEMIC_YEARS } from '../../data/naacCriteria';
 import api from '../../utils/api';
 
 export default function Documents() {
-  const [year, setYear] = useState(ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [renaming, setRenaming] = useState(null);
@@ -51,7 +51,7 @@ export default function Documents() {
         </div>
         <div style={{ display:'flex', gap:'0.5rem' }}>
           <input className="input" style={{ width:220 }} placeholder="Search files..." value={filter} onChange={e=>setFilter(e.target.value)} />
-          <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+          <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
             {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>

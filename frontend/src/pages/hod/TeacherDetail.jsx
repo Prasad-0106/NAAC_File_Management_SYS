@@ -9,7 +9,7 @@ export default function TeacherDetail() {
   const [qp] = useSearchParams();
   const navigate = useNavigate();
   const { user: hod } = useAuth();
-  const [year, setYear] = useState(qp.get('year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 2]);
+  const [year, setYear] = useState(() => qp.get('year') || localStorage.getItem('naac_academic_year') || ACADEMIC_YEARS[ACADEMIC_YEARS.length - 1]);
   const [teacher, setTeacher] = useState(null);
   const [allData, setAllData] = useState({});
   const [docs, setDocs] = useState([]);
@@ -25,7 +25,7 @@ export default function TeacherDetail() {
       api.get(`/export/teachers`).then(r => { const t = r.data.find(t => t.id === teacherId); setTeacher(t); }),
       api.get(`/criteria/${year}?teacher_id=${teacherId}`).then(r => setAllData(r.data)),
       api.get(`/documents/list?academic_year=${year}&teacher_id=${teacherId}`).then(r => setDocs(r.data)),
-      api.get(`/verifications/teacher/${teacherId}`).then(r => setVerifs(r.data)),
+      api.get(`/verifications/teacher/${teacherId}?academic_year=${year}`).then(r => setVerifs(r.data)),
     ]).catch(() => {});
   }, [teacherId, year]);
 
@@ -34,7 +34,7 @@ export default function TeacherDetail() {
     try {
       await api.post('/verifications/review', { teacher_id: teacherId, academic_year: year, criterion_no: reviewForm.criterion_no || null, status: reviewForm.status, comment: reviewForm.comment });
       setReviewMsg('Review submitted successfully!');
-      api.get(`/verifications/teacher/${teacherId}`).then(r => setVerifs(r.data));
+      api.get(`/verifications/teacher/${teacherId}?academic_year=${year}`).then(r => setVerifs(r.data));
     } catch (e) { setReviewMsg('Error: ' + (e.response?.data?.error || e.message)); }
     finally { setReviewing(false); }
   };
@@ -92,10 +92,17 @@ export default function TeacherDetail() {
         });
         
         if (verificationStatus === 'Verified') {
-          html += `<div class="watermark">
-            ${user.signature_url ? `<img src="${user.signature_url}" alt="Teacher Signature" />` : '<div style="height:40px"></div>'}
-            <p>${user.name}</p>
-            <p style="font-size: 10px; color: green;">VERIFIED BY HOD: ${today}</p>
+          html += `<div class="watermark" style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div style="text-align:left;">
+              ${user.signature_url ? `<img src="${user.signature_url}" alt="Teacher Signature" style="max-width:120px; border-bottom: 1px solid #1e3a5f;" />` : '<div style="height:40px; border-bottom: 1px solid #ccc; width:120px;"></div>'}
+              <p>${user.name}</p>
+              <p style="font-size: 10px; color: #555;">Teacher</p>
+            </div>
+            <div style="text-align:right;">
+              ${data.hodSignature ? `<img src="${data.hodSignature}" alt="HOD Signature" style="max-width:120px; border-bottom: 1px solid #1e3a5f;" />` : '<div style="height:40px; border-bottom: 1px solid #ccc; width:120px;"></div>'}
+              <p>${data.hodName || 'HOD'}</p>
+              <p style="font-size: 10px; color: green;">VERIFIED BY HOD: ${today}</p>
+            </div>
           </div>`;
         }
         
@@ -131,7 +138,7 @@ export default function TeacherDetail() {
           <h1 style={{ fontSize:'1.4rem' }}>{teacher.name}</h1>
           <p style={{ fontSize:'0.85rem' }}>{teacher.designation} · {teacher.department}</p>
         </div>
-        <select className="select" style={{ width:'auto' }} value={year} onChange={e=>setYear(e.target.value)}>
+        <select className="select" style={{ width:'auto' }} value={year} onChange={e => { setYear(e.target.value); localStorage.setItem('naac_academic_year', e.target.value); }}>
           {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <button className="btn btn-primary btn-sm" onClick={exportPDF} disabled={exportingPDF}>

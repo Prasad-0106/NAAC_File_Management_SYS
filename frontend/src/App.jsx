@@ -1,4 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Menu as MenuIcon, GraduationCap as GraduationCapIcon } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -21,24 +23,49 @@ import TeacherDetail from './pages/hod/TeacherDetail';
 import AuditLog from './pages/hod/AuditLog';
 import HodExport from './pages/hod/HodExport';
 import HodNotifications from './pages/hod/HodNotifications';
+import PendingApprovals from './pages/hod/PendingApprovals';
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 
 function ProtectedRoute({ children, role }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="loader"><div className="loader-dot"/><div className="loader-dot"/><div className="loader-dot"/></div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to={user.role === 'hod' ? '/hod/dashboard' : '/dashboard'} replace />;
-  if (user.role === 'teacher' && !user.profile_complete && window.location.pathname !== '/profile-setup') return <Navigate to="/profile-setup" replace />;
+  if (role && user.role !== role) {
+    if (user.role === 'superadmin') return <Navigate to="/superadmin/dashboard" replace />;
+    return <Navigate to={user.role === 'hod' ? '/hod/dashboard' : '/dashboard'} replace />;
+  }
+  if (user.role !== 'superadmin' && !user.profile_complete && location.pathname !== '/profile-setup') {
+    return <Navigate to="/profile-setup" replace />;
+  }
   return children;
 }
 
 function AppLayout({ children }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="app-layout">
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* Mobile top bar */}
+      <div className="mobile-topbar">
+        <button
+          className="btn btn-ghost btn-sm hamburger-btn"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          <MenuIcon size={22} />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <GraduationCapIcon size={22} color="var(--accent)" />
+          <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>DBATU NAAC</span>
+        </div>
+      </div>
       <main className="main-content fade-in">{children}</main>
     </div>
   );
 }
+
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -66,8 +93,12 @@ function AppRoutes() {
       <Route path="/hod/audit" element={<ProtectedRoute role="hod"><AppLayout><AuditLog /></AppLayout></ProtectedRoute>} />
       <Route path="/hod/export" element={<ProtectedRoute role="hod"><AppLayout><HodExport /></AppLayout></ProtectedRoute>} />
       <Route path="/hod/notifications" element={<ProtectedRoute role="hod"><AppLayout><HodNotifications /></AppLayout></ProtectedRoute>} />
+      <Route path="/hod/pending-approvals" element={<ProtectedRoute role="hod"><AppLayout><PendingApprovals /></AppLayout></ProtectedRoute>} />
 
-      <Route path="/" element={user ? <Navigate to={user.role === 'hod' ? '/hod/dashboard' : '/dashboard'} replace /> : <Navigate to="/login" replace />} />
+      {/* SuperAdmin routes */}
+      <Route path="/superadmin/dashboard" element={<ProtectedRoute role="superadmin"><AppLayout><SuperAdminDashboard /></AppLayout></ProtectedRoute>} />
+
+      <Route path="/" element={user ? <Navigate to={user.role === 'superadmin' ? '/superadmin/dashboard' : user.role === 'hod' ? '/hod/dashboard' : '/dashboard'} replace /> : <Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
