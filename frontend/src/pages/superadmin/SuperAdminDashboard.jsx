@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, ShieldCheck, Plus, Users, Loader2, CheckCircle2, Building2, Mail, X } from 'lucide-react';
+import { GraduationCap, ShieldCheck, Plus, Users, Loader2, CheckCircle2, Building2, Mail, X, Trash2 } from 'lucide-react';
 import api from '../../utils/api';
 
 const DEPARTMENTS = ['Computer Science','Information Technology','Electronics','Mechanical','Civil','Electrical','Mathematics','Physics','Chemistry','English','Commerce','Management','BBA','BCA','MBA','MCA','Other'];
@@ -32,6 +32,18 @@ export default function SuperAdminDashboard() {
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to invite HOD' });
     } finally { setSubmitting(false); }
+  };
+
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete HOD ${name}? This action cannot be undone.`)) return;
+    
+    try {
+      await api.delete(`/auth/superadmin/hods/${id}`);
+      setMessage({ type: 'success', text: `HOD ${name} deleted successfully.` });
+      fetchHods();
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to delete HOD' });
+    }
   };
 
   return (
@@ -118,6 +130,7 @@ export default function SuperAdminDashboard() {
                   <th>Department</th>
                   <th>Status</th>
                   <th>Joined</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,6 +160,16 @@ export default function SuperAdminDashboard() {
                     </td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                       {hod.created_at ? new Date(hod.created_at).toLocaleDateString('en-IN') : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button 
+                        className="btn btn-outline" 
+                        style={{ padding: '0.35rem 0.5rem', color: 'var(--danger)', borderColor: 'var(--danger-light)' }}
+                        title="Delete HOD"
+                        onClick={() => handleDelete(hod.id, hod.name)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))}

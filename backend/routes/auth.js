@@ -277,6 +277,12 @@ router.post('/superadmin/invite-hod', authenticate, async (req, res) => {
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ error: 'Email already registered' });
 
+    // Prevent multiple HODs per department
+    const existingHod = await User.findOne({ role: 'hod', department });
+    if (existingHod) {
+      return res.status(400).json({ error: `An HOD is already registered for the ${department} department.` });
+    }
+
     // Create HOD with a random temp password
     const tempPassword = crypto.randomBytes(5).toString('hex').toUpperCase(); // e.g. "A3F7B2"
     const password_hash = await bcrypt.hash(tempPassword, 10);
@@ -337,6 +343,27 @@ router.get('/superadmin/hods', authenticate, async (req, res) => {
     const hods = await User.find({ role: 'hod' }).select('-password_hash').lean();
     res.json(hods.map(h => ({ ...h, id: h._id })));
   } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── SuperAdmin: Delete an HOD ───────────────────────────────────────────────
+router.delete('/superadmin/hods/:id', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Forbidden' });
+    const { id } = req.params;
+    
+    const hod = await User.findById(id);
+    if (!hod || hod.role !== 'hod') {
+      return res.status(404).json({ error: 'HOD not found' });
+    }
+
+    await User.deleteOne({ _id: id });
+    logAudit(req.user.id, req.user.name, 'superadmin', 'DELETE_HOD', 'users', id, `Deleted HOD: ${hod.email}`, req.ip);
+
+    res.json({ success: true, message: 'HOD deleted successfully.' });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
